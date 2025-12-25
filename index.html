@@ -1,526 +1,363 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8"/>
-  <title>ODM_Best_Practices_Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  
-  <!-- html2pdf Library -->
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- HTML2PDF Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
+  
   <style>
-    /* --- GENERAL APP STYLES (Data Entry) --- */
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background: #f0f2f5; }
-    .card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 1000px; margin: auto; }
+    /* --- GENERAL FORM STYLING --- */
+    body { font-family: 'Segoe UI', sans-serif; background: #f4f4f9; padding: 20px; }
+    .control-panel { max-width: 1000px; margin: 0 auto 30px auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    h2 { color: #1f4e79; border-bottom: 2px solid #eee; padding-bottom: 10px; }
     
-    .header-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
-    .header-row h2 { color: #0369a1; margin: 0; }
-    .app-logo { height: 50px; object-fit: contain; }
-
-    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
-    label { font-weight: bold; font-size: 12px; color: #555; display: block; margin-bottom: 5px; }
-    input, textarea, select { padding: 9px; width: 100%; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; background: #fafafa; }
-    input:focus, textarea:focus { border-color: #0369a1; background: #fff; outline: none; }
+    .form-row { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; }
+    .form-group { flex: 1; min-width: 200px; }
+    label { display: block; font-size: 12px; font-weight: bold; color: #555; margin-bottom: 5px; }
+    input, select, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    textarea { resize: vertical; }
     
-    .btn { background: #0369a1; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; }
-    .btn:hover { background: #025686; transform: translateY(-1px); }
-    .btn.secondary { background: #6b7280; }
-    .btn.danger { background: #dc3545; }
-    .btn.success { background: #28a745; }
+    .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; margin-right: 10px; }
+    .btn-save { background: #1f4e79; }
+    .btn-preview { background: #ed7d31; }
     
-    /* --- DATA TABLE --- */
-    table.data-table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #fff; font-size: 13px; border-radius: 8px; overflow: hidden; }
-    .data-table th, .data-table td { border-bottom: 1px solid #eee; padding: 12px; text-align: left; vertical-align: middle; }
-    .data-table th { background: #0369a1; color: white; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
-    .data-table tr:hover { background: #f9fbfd; }
-    .thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; }
-
-    /* --- MODAL FOR PREVIEW --- */
-    .modal { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.6); display:none; justify-content:center; align-items:center; z-index: 1000; backdrop-filter: blur(2px); }
-    .modal-content { background: #525659; width: 95%; height: 95vh; display: flex; flex-direction: column; border-radius: 8px; overflow: hidden; }
-    .modal-header { padding: 10px 20px; background: #f8f9fa; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; }
-    .modal-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; justify-content: center; align-items: flex-start; }
-    .modal-footer { padding: 10px 20px; background: #fff; text-align: right; border-top: 1px solid #ddd; }
-
-    /* =========================================
-       SPECIFIC "BEST PRACTICES" SLIDE CSS
-       ========================================= */
-    .slide-container {
-        width: 297mm; /* A4 Landscape width */
-        height: 200mm; /* Slightly less than A4 height to fit margins */
-        background: white;
-        padding: 30px 40px;
-        box-sizing: border-box;
-        position: relative;
-        box-shadow: 0 0 20px rgba(0,0,0,0.5);
-        display: flex;
-        flex-direction: column;
-        font-family: 'Calibri', 'Arial', sans-serif;
+    /* --- PREVIEW / PDF DESIGN (EXACT MATCH) --- */
+    .preview-modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; overflow-y: auto; padding-top: 20px; }
+    .preview-content { background: #555; padding: 20px; border-radius: 5px; width: fit-content; }
+    
+    /* THE SLIDE CSS */
+    .slide {
+        width: 297mm; height: 210mm; /* A4 Landscape */
+        background: white; padding: 10mm; box-sizing: border-box;
+        position: relative; display: flex; flex-direction: column;
+        font-family: 'Calibri', sans-serif;
     }
 
     /* Header */
-    .slide-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-    .slide-title { font-size: 42px; font-weight: bold; color: #1f3d6e; /* Dark Blue */ margin: 0; font-family: 'Georgia', serif; }
-    .slide-logo { height: 50px; }
+    .slide-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
+    .header-title { font-size: 36pt; font-weight: bold; color: #1f4e79; font-family: 'Georgia', serif; margin: 0; }
+    .logo-area { text-align: right; }
+    .califonix-logo { height: 40px; margin-bottom: 5px; }
 
-    /* Top Info Table */
-    .top-info-table { border-collapse: collapse; font-size: 12px; width: 350px; margin-left: auto; margin-bottom: 10px; text-align: center; }
-    .top-info-table th { background: #f2f2f2; border: 1px solid #ccc; padding: 5px; font-weight: bold; color: #000; }
-    .top-info-table td { border: 1px solid #ccc; padding: 5px; background: #fff; }
-    .effect-text { color: #00b050; font-weight: bold; }
+    /* Top Table */
+    .top-table { border-collapse: collapse; width: 400px; font-size: 11pt; text-align: center; float: right; }
+    .top-table th { background: #f2f2f2; border: 1px solid #bfbfbf; padding: 4px; font-weight: bold; color: #000; }
+    .top-table td { border: 1px solid #bfbfbf; padding: 4px; }
+    .text-green { color: #00b050; font-weight: bold; }
 
-    /* Topic Line */
-    .topic-line { font-size: 20px; font-weight: bold; margin-bottom: 20px; display: flex; align-items: center; }
-    .topic-label { color: #c00000; margin-right: 5px; } /* Red Color */
-    .topic-text { color: #0070c0; } /* Blue Color */
-    .square-bullet { display: inline-block; width: 10px; height: 10px; border: 1px solid #555; margin-right: 5px; }
+    /* Topic */
+    .topic-row { clear: both; margin-bottom: 10px; font-size: 18pt; font-weight: bold; display: flex; align-items: center; }
+    .square { width: 12px; height: 12px; border: 2px solid #555; margin-right: 8px; display: inline-block; }
+    .topic-label { color: #c00000; margin-right: 5px; } /* Red */
+    .topic-val { color: #0070c0; } /* Blue */
 
-    /* Main Content Grid */
-    .content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; flex: 1; }
+    /* Main Content (As-Was vs As-Is) */
+    .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex-grow: 1; border-top: 2px solid #eee; padding-top: 10px; }
     
-    /* As-Was / As-Is Boxes */
-    .column-box { display: flex; flex-direction: column; height: 100%; border-left: 1px solid #eee; padding-left: 10px; }
-    
-    .section-header { 
-        background-color: #367fa9; /* Blue bg */
-        color: white; 
-        font-weight: bold; 
-        padding: 5px 15px; 
-        border-radius: 0 15px 15px 0; /* Rounded right side */
-        width: fit-content;
-        margin-bottom: 15px;
-        font-size: 18px;
+    .col-header { 
+        background: linear-gradient(to right, #367fa9, #5c9ccc); 
+        color: white; font-weight: bold; padding: 5px 15px; 
+        border-radius: 0 10px 10px 0; font-size: 14pt; width: fit-content; margin-bottom: 15px;
         box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
     }
 
-    .bullet-list { list-style: none; padding: 0; margin: 0 0 20px 0; font-size: 14px; color: #333; line-height: 1.5; }
-    .bullet-list li { margin-bottom: 8px; position: relative; padding-left: 15px; }
-    .bullet-list li::before { content: "▪"; color: #000; font-size: 18px; position: absolute; left: 0; top: -3px; }
+    .bullet-points { padding-left: 20px; margin: 0 0 15px 0; font-size: 12pt; line-height: 1.4; }
+    .bullet-points li { margin-bottom: 8px; }
 
-    /* Image Area */
-    .visual-area { 
-        flex: 1; 
-        border: 1px dashed #ccc; 
-        display: flex; 
-        justify-content: center; 
-        align-items: center; 
-        background: #fdfdfd; 
-        position: relative;
-        min-height: 200px;
+    .img-box { 
+        border: 1px dashed #ccc; padding: 5px; text-align: center; 
+        height: 250px; display: flex; flex-direction: column; justify-content: center; align-items: center;
+        background: #fdfdfd;
     }
-    .visual-img { max-width: 100%; max-height: 250px; object-fit: contain; }
-    .visual-caption { text-align: center; font-size: 12px; color: #0070c0; margin-top: 5px; font-weight: bold; }
+    .main-img { max-width: 100%; max-height: 220px; object-fit: contain; }
+    .img-caption { color: #2e75b6; font-size: 10pt; margin-top: 5px; font-weight: bold; }
 
-    /* Footer Benefits Section */
-    .footer-section { margin-top: auto; display: flex; border: 1px solid #ccc; font-size: 12px; }
+    /* Footer */
+    .footer { margin-top: auto; display: flex; border: 1px solid #ccc; font-size: 11pt; }
     .benefits-label { 
-        background-color: #2e75b6; /* Blue */
-        color: white; 
-        font-weight: bold; 
-        font-size: 18px; 
-        padding: 10px 20px; 
-        display: flex; 
-        align-items: center; 
-        justify-content: center;
-        width: 120px;
+        background-color: #2e75b6; color: white; font-weight: bold; font-size: 14pt; 
+        padding: 10px; width: 120px; display: flex; align-items: center; justify-content: center;
     }
-    .benefits-text { padding: 10px; display: flex; align-items: center; flex: 1; font-size: 14px; }
-    
-    .status-table { border-collapse: collapse; font-size: 11px; width: 400px; text-align: center; }
-    .status-table th { background: #ed7d31; color: white; border: 1px solid white; padding: 5px; } /* Orange Header */
-    .status-table td { border: 1px solid white; padding: 5px; background: #fbe5d6; }
+    .benefits-content { flex: 1; padding: 10px; display: flex; align-items: center; }
+
+    .status-table { border-collapse: collapse; width: 450px; text-align: center; font-size: 10pt; }
+    .status-table th { background: #ed7d31; color: white; padding: 5px; border: 1px solid white; }
+    .status-table td { background: #fbe5d6; padding: 5px; border: 1px solid white; }
     .status-green { background: #92d050 !important; color: black; font-weight: bold; }
 
   </style>
 </head>
-
 <body>
 
-<div class="card">
-  <div class="header-row">
-      <h2>ODM Dashboard (Best Practices Format)</h2>
-      <img src="https://i.postimg.cc/5y7SN4xc/logo.png" class="app-logo" alt="Logo">
-  </div>
-
-  <input type="hidden" id="editRowIndex">
-
-  <!-- Form Inputs -->
-  <div class="form-grid">
-      <div><label>Date</label><input id="date" type="date"></div>
-      <div><label>ODM / Plant</label><input id="odm" placeholder="e.g. Califonix"></div>
-      <div><label>Model</label><input id="model"></div>
-      <div><label>Area</label><input id="area" placeholder="e.g. Testing / Assembly"></div>
-  </div>
-
-  <div class="form-grid">
-      <div><label>Topic / Item Name</label><input id="item" placeholder="e.g. CTC Sensor Fail Prevention"></div>
-      <div><label>Defect Rate % (As-Was)</label><input id="defectRate" type="number" placeholder="%"></div>
-      <div><label>Proposer (Name)</label><input id="preparedBy"></div>
-      <div><label>Upload Images (1: As-Is, 2: As-Was)</label><input id="images" type="file" accept="image/*" multiple></div>
-  </div>
-
-  <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
-      <div><label>As-Was (Problem Description)</label><textarea id="defectDetails" rows="3" placeholder="Enter bullet points for As-Was..."></textarea></div>
-      <div><label>As-Is (Solution/RCA)</label><textarea id="rca" rows="3" placeholder="Enter bullet points for As-Is..."></textarea></div>
-  </div>
+<!-- DATA ENTRY FORM -->
+<div class="control-panel">
+  <h2>Kaizen / Improvement Entry Form</h2>
   
-  <div><label>Benefits / Remarks</label><input id="remarks" placeholder="e.g. Reduction of Sensor Fail PDI Rejection"></div>
-
-  <div style="margin-top:20px;">
-      <button id="saveBtn" class="btn">Save Record</button>
-      <button id="clearBtn" class="btn secondary">Clear Form</button>
-      <button id="refreshBtn" class="btn secondary" style="float:right">Refresh List</button>
+  <div class="form-row">
+      <div class="form-group"><label>Topic (Improvement Title)</label><input type="text" id="topic" placeholder="e.g. Prevention of leakage..."></div>
   </div>
 
-  <table id="dataTable" class="data-table">
-    <thead>
-      <tr><th>Date</th><th>Model</th><th>Topic</th><th>As-Was</th><th>As-Is</th><th>Action</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <div class="form-row">
+      <div class="form-group"><label>Plant</label><input type="text" id="plant" value="Califonix"></div>
+      <div class="form-group"><label>Area</label><input type="text" id="area" placeholder="e.g. Testing"></div>
+      <div class="form-group"><label>Effect</label><input type="text" id="effect" value="Quality Improvement"></div>
+      <div class="form-group"><label>Proposer</label><input type="text" id="proposer"></div>
+  </div>
+
+  <hr>
+
+  <div class="form-row">
+      <!-- Left Side -->
+      <div class="form-group" style="background:#f9f9f9; padding:10px; border-radius:5px;">
+          <h3 style="margin-top:0; color:#c00000;">As-Was (Before)</h3>
+          <label>Details (Bullet points)</label>
+          <textarea id="aswas_points" rows="5" placeholder="Enter point, press enter for new line"></textarea>
+          
+          <label style="margin-top:10px;">Upload As-Was Image</label>
+          <input type="file" id="aswas_img" accept="image/*" onchange="previewFile('aswas_img')">
+          <label>Image Caption</label>
+          <input type="text" id="aswas_cap" placeholder="e.g. High Failure Rate">
+      </div>
+
+      <!-- Right Side -->
+      <div class="form-group" style="background:#f0f8ff; padding:10px; border-radius:5px;">
+          <h3 style="margin-top:0; color:#0070c0;">As-Is (After)</h3>
+          <label>Details (Bullet points)</label>
+          <textarea id="asis_points" rows="5" placeholder="Enter point, press enter for new line"></textarea>
+          
+          <label style="margin-top:10px;">Upload As-Is Image</label>
+          <input type="file" id="asis_img" accept="image/*" onchange="previewFile('asis_img')">
+          <label>Image Caption</label>
+          <input type="text" id="asis_cap" placeholder="e.g. Testing with Pairing Tool">
+          
+          <label>Video Link (Optional)</label>
+          <input type="text" id="asis_video" placeholder="Link here...">
+      </div>
+  </div>
+
+  <div class="form-row">
+      <div class="form-group"><label>Benefits</label><input type="text" id="benefits" placeholder="e.g. Reduction of Rejection"></div>
+  </div>
+
+  <div class="form-row">
+      <div class="form-group"><label>Implementation Status</label>
+        <select id="status"><option>Implemented</option><option>In Progress</option><option>Planned</option></select>
+      </div>
+      <div class="form-group"><label>Remarks</label><input type="text" id="remarks" value="-"></div>
+      <div class="form-group"><label>ETA</label><input type="date" id="eta"></div>
+  </div>
+
+  <div style="text-align:center; margin-top:20px;">
+      <button class="btn btn-preview" onclick="generatePreview()">Generate Preview</button>
+      <button class="btn btn-save" id="saveBtn" onclick="saveData()">Save to Database</button>
+  </div>
 </div>
 
 <!-- PREVIEW MODAL -->
-<div id="modal" class="modal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3 style="margin:0;">Format Preview</h3>
-      <button onclick="closeModal()" style="border:none; background:none; font-size:24px; cursor:pointer;">&times;</button>
+<div id="previewModal" class="preview-modal">
+    <div class="preview-content">
+        <div style="text-align:right; margin-bottom:10px;">
+            <button class="btn btn-save" onclick="downloadPDF()">Download PDF</button>
+            <button class="btn btn-preview" style="background:#555;" onclick="closeModal()">Close</button>
+        </div>
+
+        <!-- THIS IS THE SLIDE TO PRINT -->
+        <div id="slide-to-print" class="slide">
+            
+            <!-- Header -->
+            <div class="slide-header">
+                <h1 class="header-title">Best Practices</h1>
+                <div class="logo-area">
+                    <img src="https://i.postimg.cc/5y7SN4xc/logo.png" class="califonix-logo">
+                    <table class="top-table">
+                        <tr><th>Plant</th><th>Area</th><th>Effect</th><th>Proposer</th></tr>
+                        <tr>
+                            <td id="p_plant"></td>
+                            <td id="p_area"></td>
+                            <td id="p_effect" class="text-green"></td>
+                            <td id="p_proposer"></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Topic -->
+            <div class="topic-row">
+                <div class="square"></div>
+                <span class="topic-label">Topic- </span>
+                <span id="p_topic" class="topic-val"></span>
+            </div>
+
+            <!-- Body -->
+            <div class="main-grid">
+                <!-- As Was -->
+                <div>
+                    <div class="col-header">As-Was</div>
+                    <ul id="p_aswas_list" class="bullet-points"></ul>
+                    <div class="img-box">
+                        <img id="p_aswas_img" class="main-img" style="display:none;">
+                        <div id="p_aswas_cap" class="img-caption"></div>
+                    </div>
+                </div>
+
+                <!-- As Is -->
+                <div>
+                    <div class="col-header">As-Is</div>
+                    <ul id="p_asis_list" class="bullet-points"></ul>
+                    <div class="img-box">
+                        <img id="p_asis_img" class="main-img" style="display:none;">
+                        <div id="p_asis_cap" class="img-caption"></div>
+                        <div id="p_asis_vid" style="font-size:10px; color:blue; margin-top:2px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer">
+                <div class="benefits-label">Benefits</div>
+                <div class="benefits-content">
+                    - <span id="p_benefits"></span>
+                </div>
+                <table class="status-table">
+                    <tr><th>Implementation Status</th><th>Remarks</th><th>ETA</th></tr>
+                    <tr>
+                        <td id="p_status" class="status-green"></td>
+                        <td id="p_remarks"></td>
+                        <td id="p_eta"></td>
+                    </tr>
+                </table>
+            </div>
+
+        </div>
     </div>
-    
-    <div class="modal-body">
-      <!-- === THIS IS THE SLIDE AREA THAT WILL BE PRINTED === -->
-      <div id="printArea" class="slide-container">
-          
-          <!-- Slide Header -->
-          <div class="slide-header">
-              <h1 class="slide-title">Best Practices</h1>
-              <div style="text-align: right;">
-                  <!-- Logo Image -->
-                  <img src="https://i.postimg.cc/5y7SN4xc/logo.png" class="slide-logo" alt="CALIFONIX">
-                  
-                  <!-- Top Right Table -->
-                  <table class="top-info-table">
-                      <tr>
-                          <th>Plant</th>
-                          <th>Area</th>
-                          <th>Effect</th>
-                          <th>Proposer</th>
-                      </tr>
-                      <tr>
-                          <td id="slide_plant">Califonix</td>
-                          <td id="slide_area">Testing</td>
-                          <td class="effect-text">Quality Improvement</td>
-                          <td id="slide_proposer">Name</td>
-                      </tr>
-                  </table>
-              </div>
-          </div>
-
-          <!-- Topic Line -->
-          <div class="topic-line">
-              <span class="square-bullet"></span>
-              <span class="topic-label">Topic- </span>
-              <span class="topic-text" id="slide_topic">Prevention of leakage of CTC Sensor Fail</span>
-          </div>
-
-          <!-- Main Grid -->
-          <div class="content-grid">
-              
-              <!-- LEFT: AS-WAS -->
-              <div class="column-box">
-                  <div class="section-header">As-Was</div>
-                  <ul class="bullet-list" id="slide_aswas_text">
-                      <!-- Bullets injected via JS -->
-                  </ul>
-                  
-                  <!-- Visual (Chart or Image 2) -->
-                  <div class="visual-area">
-                      <img id="slide_img_old" class="visual-img" style="display:none;">
-                      <!-- Fallback text if no image -->
-                      <div id="chart_placeholder" style="text-align:center; display:none;">
-                          <div style="width:100px; height:150px; background:linear-gradient(to top, #ed7d31 70%, transparent 70%); margin:auto;"></div>
-                          <p>Rate: <span id="slide_rate_old"></span>%</p>
-                      </div>
-                  </div>
-                  <div class="visual-caption" id="caption_aswas">Prior to Implementation</div>
-              </div>
-
-              <!-- RIGHT: AS-IS -->
-              <div class="column-box">
-                  <div class="section-header">As-Is</div>
-                  <ul class="bullet-list" id="slide_asis_text">
-                      <!-- Bullets injected via JS -->
-                  </ul>
-
-                  <!-- Visual (Image 1 - The Solution) -->
-                  <div class="visual-area">
-                      <img id="slide_img_new" class="visual-img" src="">
-                  </div>
-                  <div class="visual-caption" id="caption_asis">After Implementation</div>
-              </div>
-
-          </div>
-
-          <!-- Footer Benefits -->
-          <div class="footer-section">
-              <div class="benefits-label">Benefits</div>
-              <div class="benefits-text">
-                  - <span id="slide_benefits">Reduction of Sensor Fail PDI Rejection</span>
-              </div>
-              
-              <table class="status-table">
-                  <tr>
-                      <th>Implementation Status</th>
-                      <th>Remarks</th>
-                      <th>ETA</th>
-                  </tr>
-                  <tr>
-                      <td class="status-green">Implemented</td>
-                      <td>-</td>
-                      <td>-</td>
-                  </tr>
-              </table>
-          </div>
-
-      </div>
-      <!-- === END SLIDE AREA === -->
-    </div>
-
-    <div class="modal-footer">
-        <button class="btn secondary" onclick="closeModal()">Edit</button>
-        <button class="btn success" onclick="downloadPDF()">Download PDF</button>
-    </div>
-  </div>
 </div>
 
 <script>
-// UPDATE YOUR SCRIPT URL HERE
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwGCDn3USDWCByX5a-rgiZDkX-YwdfH4y1bd6_PgpLs-ZXgLo9FG5eboPSt4zKI8TfEcA/exec";
+// Global Objects to store base64 images
+let imgData = { asWas: null, asIs: null, asWasName: "", asIsName: "" };
 
-let allData = [];
-
-// --- HELPER FUNCTIONS ---
-function escapeHtml(s){ return s ? String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;") : ""; }
-
-function readFilesAndCompress(files) {
-  return Promise.all([...files].map(file => new Promise(resolve => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        // Resize for performance
-        let w = img.width, h = img.height;
-        if(w > 800) { h *= 800/w; w = 800; }
-        canvas.width = w; canvas.height = h;
-        ctx.drawImage(img, 0, 0, w, h);
-        resolve({ name: file.name, data: canvas.toDataURL('image/jpeg', 0.7) });
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  })));
-}
-
-// --- SAVE RECORD ---
-async function saveRecord(){
-  const btn = document.getElementById('saveBtn');
-  btn.innerText = "Processing..."; btn.disabled = true;
-
-  const fileInput = document.getElementById('images');
-  let imgs = [];
-  if(fileInput.files.length > 0) {
-      imgs = await readFilesAndCompress(fileInput.files);
-  }
-
-  const rowIndex = document.getElementById('editRowIndex').value;
-  const action = rowIndex ? "update" : "create";
-
-  if(action === "update" && imgs.length === 0){
-      let oldRow = allData.find(r => r._rowIndex == rowIndex);
-      if(oldRow && oldRow.ImageURLs) {
-          imgs = oldRow.ImageURLs.split(" || ").map(url => ({ data: url }));
-      }
-  }
-
-  let record = {
-    date: document.getElementById('date').value,
-    odm: document.getElementById('odm').value,
-    model: document.getElementById('model').value,
-    po: document.getElementById('area').value, // Using PO field as AREA
-    item: document.getElementById('item').value,
-    defectDetails: document.getElementById('defectDetails').value, // As-Was
-    defectRate: document.getElementById('defectRate').value,
-    rca: document.getElementById('rca').value, // As-Is
-    remarks: document.getElementById('remarks').value, 
-    preparedBy: document.getElementById('preparedBy').value,
-    images: imgs 
-  };
-
-  try {
-      let res = await fetch(SCRIPT_URL, { method:"POST", body: JSON.stringify({ action, record, rowIndex }) });
-      let j = await res.json();
-      if(j.status==="success"){
-        alert("✅ Record Saved!");
-        clearForm();
-        loadData();
-      } else { alert("Error: "+j.message); }
-  } catch(e){ console.error(e); alert("Network error."); }
-  
-  btn.innerText = "Save Record"; btn.disabled = false;
-}
-
-function clearForm(){
-  document.querySelectorAll('input, textarea').forEach(el => el.value = "");
-  document.getElementById('saveBtn').innerText = "Save Record";
-  document.getElementById('editRowIndex').value = "";
-}
-
-// --- LOAD DATA ---
-async function loadData(){
-  const tbody = document.querySelector("#dataTable tbody");
-  tbody.innerHTML = "<tr><td colspan='6' style='text-align:center;'>Loading...</td></tr>";
-  try {
-      let res = await fetch(SCRIPT_URL);
-      let j = await res.json();
-      allData = j.rows;
-      renderTable(j.rows);
-  } catch(e) { console.error(e); tbody.innerHTML = "<tr><td colspan='6'>Error Loading Data</td></tr>"; }
-}
-
-function renderTable(rows){
-  const tbody = document.querySelector("#dataTable tbody");
-  tbody.innerHTML = "";
-  if(rows.length === 0) { tbody.innerHTML = "<tr><td colspan='6' style='text-align:center'>No Data</td></tr>"; return; }
-  
-  rows.forEach((r) => {
-    let tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${(r.Date || "").replace("'","")}</td>
-      <td>${escapeHtml(r.Model)}</td>
-      <td>${escapeHtml(r.Item)}</td>
-      <td><small>${escapeHtml(r.DefectDetails).substring(0,30)}...</small></td>
-      <td><small>${escapeHtml(r.RCA).substring(0,30)}...</small></td>
-      <td>
-        <button class="btn success" style="padding:4px 8px;" onclick='openPreview(${JSON.stringify(r)})'>PDF</button>
-        <button class="btn secondary" style="padding:4px 8px;" onclick="editRecord(${r._rowIndex})">Edit</button>
-        <button class="btn danger" style="padding:4px 8px;" onclick="deleteRecord(${r._rowIndex})">Del</button>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-function editRecord(rowIndex){
-  let r = allData.find(x => x._rowIndex == rowIndex);
-  if(!r) return;
-  document.getElementById('date').value = (r.Date || "").replace("'", "");
-  document.getElementById('odm').value = r.ODM;
-  document.getElementById('model').value = r.Model;
-  document.getElementById('area').value = r.PO; // Mapped as Area
-  document.getElementById('item').value = r.Item;
-  document.getElementById('defectDetails').value = r.DefectDetails;
-  document.getElementById('defectRate').value = r.DefectRate;
-  document.getElementById('rca').value = r.RCA;
-  document.getElementById('remarks').value = r.Remarks;
-  document.getElementById('preparedBy').value = r.PreparedBy;
-  document.getElementById('editRowIndex').value = rowIndex;
-  document.getElementById('saveBtn').innerText = "Update Record";
-  window.scrollTo(0,0);
-}
-
-async function deleteRecord(rowIndex){
-  if(!confirm("Delete this record?")) return;
-  await fetch(SCRIPT_URL,{ method:"POST", body: JSON.stringify({action:"delete", rowIndex}) });
-  loadData();
-}
-
-// --- SLIDE PREVIEW LOGIC ---
-function openPreview(r){
-    // Top Info
-    document.getElementById('slide_plant').innerText = r.ODM || "Califonix";
-    document.getElementById('slide_area').innerText = r.PO || "Testing"; // Using PO as Area
-    document.getElementById('slide_proposer').innerText = r.PreparedBy || "-";
-    
-    // Topic
-    document.getElementById('slide_topic').innerText = (r.Item || "Topic Name") + (r.Model ? ` (${r.Model})` : "");
-
-    // As-Was (Bullets)
-    let asWasHtml = "";
-    if(r.DefectDetails){
-        r.DefectDetails.split('\n').forEach(line => {
-            if(line.trim()) asWasHtml += `<li>${escapeHtml(line)}</li>`;
-        });
-    } else { asWasHtml = "<li>No details provided.</li>"; }
-    document.getElementById('slide_aswas_text').innerHTML = asWasHtml;
-
-    // As-Is (Bullets)
-    let asIsHtml = "";
-    if(r.RCA){
-        r.RCA.split('\n').forEach(line => {
-            if(line.trim()) asIsHtml += `<li>${escapeHtml(line)}</li>`;
-        });
-    } else { asIsHtml = "<li>No details provided.</li>"; }
-    document.getElementById('slide_asis_text').innerHTML = asIsHtml;
-
-    // Benefits
-    document.getElementById('slide_benefits').innerText = r.Remarks || "Standard Quality Improvement";
-
-    // Images Handling
-    const imgs = (r.ImageURLs || "").split(" || ").filter(Boolean);
-    const imgNew = document.getElementById('slide_img_new'); // Right side (As-Is)
-    const imgOld = document.getElementById('slide_img_old'); // Left side (As-Was)
-    const chartPlace = document.getElementById('chart_placeholder');
-
-    // Default: Image 1 goes to "As-Is" (Solution), Image 2 goes to "As-Was" (Problem)
-    if(imgs.length > 0) {
-        imgNew.src = imgs[0];
-        imgNew.style.display = 'block';
+function previewFile(inputId) {
+  const file = document.getElementById(inputId).files[0];
+  const reader = new FileReader();
+  reader.onloadend = function() {
+    if(inputId === 'aswas_img') {
+        imgData.asWas = reader.result;
+        imgData.asWasName = file.name;
     } else {
-        imgNew.style.display = 'none';
+        imgData.asIs = reader.result;
+        imgData.asIsName = file.name;
     }
-
-    if(imgs.length > 1) {
-        imgOld.src = imgs[1];
-        imgOld.style.display = 'block';
-        chartPlace.style.display = 'none';
-        document.getElementById('caption_aswas').innerText = "Visual Evidence (Fail)";
-    } else {
-        // Show Chart Placeholder if no 2nd image
-        imgOld.style.display = 'none';
-        chartPlace.style.display = 'block';
-        document.getElementById('slide_rate_old').innerText = r.DefectRate || "0";
-        document.getElementById('caption_aswas').innerText = r.DefectRate ? "High Failure Rate" : "Issue Visualization";
-    }
-
-    document.getElementById('modal').style.display = 'flex';
+  }
+  if (file) reader.readAsDataURL(file);
 }
 
-function closeModal(){ document.getElementById('modal').style.display = 'none'; }
+function generatePreview() {
+    // Fill text fields
+    document.getElementById('p_topic').innerText = document.getElementById('topic').value;
+    document.getElementById('p_plant').innerText = document.getElementById('plant').value;
+    document.getElementById('p_area').innerText = document.getElementById('area').value;
+    document.getElementById('p_effect').innerText = document.getElementById('effect').value;
+    document.getElementById('p_proposer').innerText = document.getElementById('proposer').value;
+    document.getElementById('p_benefits').innerText = document.getElementById('benefits').value;
+    document.getElementById('p_status').innerText = document.getElementById('status').value;
+    document.getElementById('p_remarks').innerText = document.getElementById('remarks').value;
+    document.getElementById('p_eta').innerText = document.getElementById('eta').value;
+    document.getElementById('p_aswas_cap').innerText = document.getElementById('aswas_cap').value;
+    document.getElementById('p_asis_cap').innerText = document.getElementById('asis_cap').value;
 
-function downloadPDF(){
-    const element = document.getElementById('printArea');
-    const topic = document.getElementById('slide_topic').innerText;
+    const vid = document.getElementById('asis_video').value;
+    document.getElementById('p_asis_vid').innerText = vid ? "(Video Link Available)" : "";
+
+    // Lists
+    const aswasList = document.getElementById('aswas_points').value.split('\n');
+    let htmlWas = "";
+    aswasList.forEach(item => { if(item.trim()) htmlWas += `<li>${item}</li>`; });
+    document.getElementById('p_aswas_list').innerHTML = htmlWas;
+
+    const asisList = document.getElementById('asis_points').value.split('\n');
+    let htmlIs = "";
+    asisList.forEach(item => { if(item.trim()) htmlIs += `<li>${item}</li>`; });
+    document.getElementById('p_asis_list').innerHTML = htmlIs;
+
+    // Images
+    const imgWas = document.getElementById('p_aswas_img');
+    if(imgData.asWas) { imgWas.src = imgData.asWas; imgWas.style.display = 'block'; }
+    else { imgWas.style.display = 'none'; }
+
+    const imgIs = document.getElementById('p_asis_img');
+    if(imgData.asIs) { imgIs.src = imgData.asIs; imgIs.style.display = 'block'; }
+    else { imgIs.style.display = 'none'; }
+
+    document.getElementById('previewModal').style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('previewModal').style.display = 'none';
+}
+
+function downloadPDF() {
+    const element = document.getElementById('slide-to-print');
+    const topic = document.getElementById('topic').value || "Kaizen";
     
     const opt = {
-        margin: 0,
-        filename: `BestPractice_${topic}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } // Landscape Mode
+      margin: 0,
+      filename: `Kaizen_${topic}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
     };
 
     html2pdf().set(opt).from(element).save();
 }
 
-// Initial Load
-document.getElementById('saveBtn').onclick = saveRecord;
-document.getElementById('clearBtn').onclick = clearForm;
-document.getElementById('refreshBtn').onclick = loadData;
-loadData();
+function saveData() {
+    const btn = document.getElementById('saveBtn');
+    btn.innerText = "Saving...";
+    btn.disabled = true;
 
+    const payload = {
+        action: "save",
+        data: {
+            topic: document.getElementById('topic').value,
+            plant: document.getElementById('plant').value,
+            area: document.getElementById('area').value,
+            effect: document.getElementById('effect').value,
+            proposer: document.getElementById('proposer').value,
+            
+            asWasPoints: document.getElementById('aswas_points').value,
+            asWasImgData: imgData.asWas,
+            asWasImgName: imgData.asWasName,
+            asWasCaption: document.getElementById('aswas_cap').value,
+            
+            asIsPoints: document.getElementById('asis_points').value,
+            asIsImgData: imgData.asIs,
+            asIsImgName: imgData.asIsName,
+            asIsCaption: document.getElementById('asis_cap').value,
+            asIsVideo: document.getElementById('asis_video').value,
+            
+            benefits: document.getElementById('benefits').value,
+            status: document.getElementById('status').value,
+            statusRemarks: document.getElementById('remarks').value,
+            eta: document.getElementById('eta').value
+        }
+    };
+
+    google.script.run
+        .withSuccessHandler(function(res) {
+            const r = JSON.parse(res);
+            alert(r.message);
+            btn.innerText = "Save to Database";
+            btn.disabled = false;
+        })
+        .withFailureHandler(function(err) {
+            alert("Error: " + err);
+            btn.innerText = "Save to Database";
+            btn.disabled = false;
+        })
+        .doPost({ postData: { contents: JSON.stringify(payload) } });
+}
 </script>
+
 </body>
 </html>
