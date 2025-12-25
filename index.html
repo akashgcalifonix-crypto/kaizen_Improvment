@@ -2,70 +2,60 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Kaizen Improvement Tool</title>
+  <title>Kaizen Manager</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- HTML2PDF Library -->
+  <!-- HTML2PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   
   <style>
-    /* --- STYLES --- */
     body { font-family: 'Segoe UI', sans-serif; background: #f4f4f9; padding: 20px; }
     .control-panel { max-width: 1000px; margin: 0 auto 30px auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    h2 { color: #1f4e79; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+    h2 { color: #1f4e79; border-bottom: 2px solid #eee; padding-bottom: 10px; display:flex; justify-content:space-between; }
     
     .form-row { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; }
     .form-group { flex: 1; min-width: 200px; }
     label { display: block; font-size: 12px; font-weight: bold; color: #555; margin-bottom: 5px; }
     input, select, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
     
-    .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; margin-right: 10px; }
+    .btn { padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; margin-right: 5px; }
     .btn-save { background: #1f4e79; }
     .btn-preview { background: #ed7d31; }
+    .btn-danger { background: #dc3545; }
+    .btn-sec { background: #6c757d; }
     
-    /* MODAL & SLIDE CSS (Exact Match) */
+    /* TABLE STYLES */
+    .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
+    .data-table th, .data-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    .data-table th { background-color: #1f4e79; color: white; }
+    .data-table tr:hover { background-color: #f1f1f1; }
+
+    /* PREVIEW MODAL & SLIDE CSS (Hidden by default) */
     .preview-modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; overflow-y: auto; padding-top: 20px; }
     .preview-content { background: #555; padding: 20px; border-radius: 5px; width: fit-content; }
     
-    .slide {
-        width: 297mm; height: 210mm; background: white; padding: 10mm; box-sizing: border-box;
-        position: relative; display: flex; flex-direction: column; font-family: 'Calibri', sans-serif;
-    }
-
+    .slide { width: 297mm; height: 210mm; background: white; padding: 10mm; position: relative; display: flex; flex-direction: column; font-family: 'Calibri', sans-serif; box-sizing: border-box;}
     .slide-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
     .header-title { font-size: 36pt; font-weight: bold; color: #1f4e79; font-family: 'Georgia', serif; margin: 0; }
     .logo-area { text-align: right; }
     .califonix-logo { height: 40px; margin-bottom: 5px; }
-
     .top-table { border-collapse: collapse; width: 400px; font-size: 11pt; text-align: center; float: right; }
     .top-table th { background: #f2f2f2; border: 1px solid #bfbfbf; padding: 4px; font-weight: bold; color: #000; }
     .top-table td { border: 1px solid #bfbfbf; padding: 4px; }
     .text-green { color: #00b050; font-weight: bold; }
-
     .topic-row { clear: both; margin-bottom: 10px; font-size: 18pt; font-weight: bold; display: flex; align-items: center; }
     .square { width: 12px; height: 12px; border: 2px solid #555; margin-right: 8px; display: inline-block; }
     .topic-label { color: #c00000; margin-right: 5px; }
     .topic-val { color: #0070c0; }
-
     .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex-grow: 1; border-top: 2px solid #eee; padding-top: 10px; }
-    .col-header { 
-        background: linear-gradient(to right, #367fa9, #5c9ccc); color: white; font-weight: bold; 
-        padding: 5px 15px; border-radius: 0 10px 10px 0; font-size: 14pt; width: fit-content; margin-bottom: 15px;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
-    }
+    .col-header { background: linear-gradient(to right, #367fa9, #5c9ccc); color: white; font-weight: bold; padding: 5px 15px; border-radius: 0 10px 10px 0; font-size: 14pt; width: fit-content; margin-bottom: 15px; box-shadow: 2px 2px 5px rgba(0,0,0,0.2); }
     .bullet-points { padding-left: 20px; margin: 0 0 15px 0; font-size: 12pt; line-height: 1.4; }
     .bullet-points li { margin-bottom: 8px; }
-
-    .img-box { 
-        border: 1px dashed #ccc; padding: 5px; text-align: center; height: 250px; 
-        display: flex; flex-direction: column; justify-content: center; align-items: center; background: #fdfdfd;
-    }
+    .img-box { border: 1px dashed #ccc; padding: 5px; text-align: center; height: 250px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #fdfdfd; }
     .main-img { max-width: 100%; max-height: 220px; object-fit: contain; }
     .img-caption { color: #2e75b6; font-size: 10pt; margin-top: 5px; font-weight: bold; }
-
     .footer { margin-top: auto; display: flex; border: 1px solid #ccc; font-size: 11pt; }
     .benefits-label { background-color: #2e75b6; color: white; font-weight: bold; font-size: 14pt; padding: 10px; width: 120px; display: flex; align-items: center; justify-content: center; }
     .benefits-content { flex: 1; padding: 10px; display: flex; align-items: center; }
-
     .status-table { border-collapse: collapse; width: 450px; text-align: center; font-size: 10pt; }
     .status-table th { background: #ed7d31; color: white; padding: 5px; border: 1px solid white; }
     .status-table td { background: #fbe5d6; padding: 5px; border: 1px solid white; }
@@ -74,39 +64,40 @@
 </head>
 <body>
 
-<!-- FORM -->
 <div class="control-panel">
-  <h2>Kaizen Entry Form </h2>
+  <h2>
+    <span>Kaizen Entry Form</span>
+    <button class="btn btn-sec" onclick="loadData()">🔄 Refresh Data</button>
+  </h2>
   
-  <div class="form-row">
-      <div class="form-group"><label>Topic</label><input type="text" id="topic" placeholder="e.g. Prevention of leakage..."></div>
-  </div>
+  <input type="hidden" id="editRowIndex"> <!-- Hidden ID for Editing -->
 
   <div class="form-row">
+      <div class="form-group"><label>Topic</label><input type="text" id="topic"></div>
       <div class="form-group"><label>Plant</label><input type="text" id="plant" value="Califonix"></div>
-      <div class="form-group"><label>Area</label><input type="text" id="area" placeholder="e.g. Testing"></div>
+      <div class="form-group"><label>Area</label><input type="text" id="area"></div>
       <div class="form-group"><label>Effect</label><input type="text" id="effect" value="Quality Improvement"></div>
       <div class="form-group"><label>Proposer</label><input type="text" id="proposer"></div>
   </div>
-
-  <hr>
 
   <div class="form-row">
       <!-- As Was -->
       <div class="form-group" style="background:#f9f9f9; padding:10px;">
           <h3 style="margin-top:0; color:#c00000;">As-Was (Before)</h3>
-          <label>Details</label><textarea id="aswas_points" rows="5"></textarea>
+          <label>Details</label><textarea id="aswas_points" rows="4"></textarea>
           <label>Upload Image</label><input type="file" id="aswas_img" onchange="previewFile('aswas_img')">
-          <label>Caption</label><input type="text" id="aswas_cap" placeholder="e.g. High Failure Rate">
+          <label>Caption</label><input type="text" id="aswas_cap">
+          <div id="prev_aswas_img" style="font-size:11px; color:blue;"></div>
       </div>
 
       <!-- As Is -->
       <div class="form-group" style="background:#f0f8ff; padding:10px;">
           <h3 style="margin-top:0; color:#0070c0;">As-Is (After)</h3>
-          <label>Details</label><textarea id="asis_points" rows="5"></textarea>
+          <label>Details</label><textarea id="asis_points" rows="4"></textarea>
           <label>Upload Image</label><input type="file" id="asis_img" onchange="previewFile('asis_img')">
-          <label>Caption</label><input type="text" id="asis_cap" placeholder="e.g. Testing with Tool">
+          <label>Caption</label><input type="text" id="asis_cap">
           <label>Video Link</label><input type="text" id="asis_video">
+          <div id="prev_asis_img" style="font-size:11px; color:blue;"></div>
       </div>
   </div>
 
@@ -120,21 +111,35 @@
   </div>
 
   <div style="text-align:center; margin-top:20px;">
-      <button class="btn btn-preview" onclick="generatePreview()">Generate Preview</button>
-      <button class="btn btn-save" id="saveBtn" onclick="saveToGoogleSheet()">Save to Google Sheet</button>
+      <button class="btn btn-save" id="saveBtn" onclick="saveData()">Save / Update Record</button>
+      <button class="btn btn-sec" onclick="clearForm()">Clear Form</button>
+      <button class="btn btn-preview" onclick="generatePreview()">Preview PDF</button>
   </div>
 </div>
 
-<!-- PREVIEW AREA -->
+<!-- DATA TABLE -->
+<div class="control-panel">
+    <h3>Existing Records</h3>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Date</th><th>Topic</th><th>Proposer</th><th>Status</th><th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+            <tr><td colspan="5" style="text-align:center;">Click "Refresh Data" to load...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- PREVIEW MODAL (Same as before) -->
 <div id="previewModal" class="preview-modal">
     <div class="preview-content">
         <div style="text-align:right; margin-bottom:10px;">
             <button class="btn btn-save" onclick="downloadPDF()">Download PDF</button>
-            <button class="btn btn-preview" style="background:#555;" onclick="closeModal()">Close</button>
+            <button class="btn btn-sec" onclick="closeModal()">Close</button>
         </div>
-
         <div id="slide-to-print" class="slide">
-            <!-- HEADER -->
             <div class="slide-header">
                 <h1 class="header-title">Best Practices</h1>
                 <div class="logo-area">
@@ -145,11 +150,9 @@
                     </table>
                 </div>
             </div>
-            <!-- TOPIC -->
             <div class="topic-row">
                 <div class="square"></div><span class="topic-label">Topic- </span><span id="p_topic" class="topic-val"></span>
             </div>
-            <!-- GRID -->
             <div class="main-grid">
                 <div>
                     <div class="col-header">As-Was</div>
@@ -169,7 +172,6 @@
                     </div>
                 </div>
             </div>
-            <!-- FOOTER -->
             <div class="footer">
                 <div class="benefits-label">Benefits</div>
                 <div class="benefits-content">- <span id="p_benefits"></span></div>
@@ -183,10 +185,11 @@
 </div>
 
 <script>
-// IMPORTANT: YAHAN APNA GOOGLE SCRIPT WEB APP URL PASTE KAREIN
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzm9k5U1kYMWcjPziChWJvfmQZhkMe78a_N1gkoMVs9Nt5n-4_b9hdF6_pu06ykudQZCQ/exec"; 
+// !!! UPDATE SCRIPT URL HERE !!!
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwYOUR_NEW_DEPLOYMENT_ID_HERE/exec"; 
 
 let imgData = { asWas: null, asIs: null, asWasName: "", asIsName: "" };
+let allRecords = [];
 
 function previewFile(inputId) {
   const file = document.getElementById(inputId).files[0];
@@ -198,8 +201,192 @@ function previewFile(inputId) {
   if (file) reader.readAsDataURL(file);
 }
 
+// --- CRUD OPERATIONS ---
+
+// 1. READ (Load Data)
+async function loadData() {
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = "<tr><td colspan='5' style='text-align:center;'>Loading...</td></tr>";
+    
+    try {
+        const response = await fetch(SCRIPT_URL);
+        const json = await response.json();
+        
+        if(json.status === "success") {
+            allRecords = json.data;
+            renderTable(allRecords);
+        } else {
+            alert("Error loading data: " + json.message);
+        }
+    } catch(e) {
+        console.error(e);
+        tbody.innerHTML = "<tr><td colspan='5' style='text-align:center; color:red;'>Network Error. Check Console.</td></tr>";
+    }
+}
+
+function renderTable(data) {
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = "";
+    if(data.length === 0) { tbody.innerHTML = "<tr><td colspan='5'>No records found.</td></tr>"; return; }
+
+    data.forEach((row, index) => {
+        const date = new Date(row.date).toLocaleDateString();
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${date}</td>
+            <td><strong>${row.topic}</strong></td>
+            <td>${row.proposer}</td>
+            <td>${row.status}</td>
+            <td>
+                <button class="btn btn-preview" style="font-size:11px;" onclick="loadRecordIntoForm(${index})">Edit</button>
+                <button class="btn btn-danger" style="font-size:11px;" onclick="deleteRecord(${row.rowIndex})">Delete</button>
+                <button class="btn btn-sec" style="font-size:11px;" onclick="generatePreviewFromData(${index})">PDF</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// 2. FILL FORM (For Edit)
+function loadRecordIntoForm(arrayIndex) {
+    const r = allRecords[arrayIndex];
+    document.getElementById('editRowIndex').value = r.rowIndex;
+    
+    document.getElementById('topic').value = r.topic;
+    document.getElementById('plant').value = r.plant;
+    document.getElementById('area').value = r.area;
+    document.getElementById('effect').value = r.effect;
+    document.getElementById('proposer').value = r.proposer;
+    
+    document.getElementById('aswas_points').value = r.asWasPoints;
+    document.getElementById('aswas_cap').value = r.asWasImg.split('_').pop(); // rough caption logic if stored
+    document.getElementById('prev_aswas_img').innerText = r.asWasImg ? "Previous Image Exists" : "No Image";
+    
+    document.getElementById('asis_points').value = r.asIsPoints;
+    document.getElementById('asis_cap').value = r.asIsImg.split('_').pop();
+    document.getElementById('asis_video').value = r.asIsVideo;
+    document.getElementById('prev_asis_img').innerText = r.asIsImg ? "Previous Image Exists" : "No Image";
+
+    document.getElementById('benefits').value = r.benefits;
+    document.getElementById('status').value = r.status;
+    document.getElementById('remarks').value = r.remarks;
+    
+    // Convert date string to YYYY-MM-DD for input
+    if(r.eta) {
+        const d = new Date(r.eta);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        document.getElementById('eta').value = `${yyyy}-${mm}-${dd}`;
+    }
+
+    document.getElementById('saveBtn').innerText = "Update Record";
+    window.scrollTo(0,0);
+    
+    // Reset ImgData but keep logic to handle existing urls in backend
+    imgData = { asWas: null, asIs: null, asWasName: "", asIsName: "" }; 
+}
+
+// 3. CREATE / UPDATE
+async function saveData() {
+    const btn = document.getElementById('saveBtn');
+    const rowIndex = document.getElementById('editRowIndex').value;
+    const action = rowIndex ? "update" : "create";
+    
+    btn.innerText = "Processing..."; btn.disabled = true;
+
+    const payload = {
+        action: action,
+        data: {
+            rowIndex: rowIndex,
+            topic: document.getElementById('topic').value,
+            plant: document.getElementById('plant').value,
+            area: document.getElementById('area').value,
+            effect: document.getElementById('effect').value,
+            proposer: document.getElementById('proposer').value,
+            
+            asWasPoints: document.getElementById('aswas_points').value,
+            asWasImgData: imgData.asWas, asWasImgName: imgData.asWasName,
+            
+            asIsPoints: document.getElementById('asis_points').value,
+            asIsImgData: imgData.asIs, asIsImgName: imgData.asIsName, asIsVideo: document.getElementById('asis_video').value,
+            
+            benefits: document.getElementById('benefits').value,
+            status: document.getElementById('status').value,
+            statusRemarks: document.getElementById('remarks').value,
+            eta: document.getElementById('eta').value
+        }
+    };
+
+    try {
+        await fetch(SCRIPT_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        
+        alert("Success! (Note: 'no-cors' mode active, check sheet if not visible immediately)");
+        clearForm();
+        setTimeout(loadData, 2000); // Reload table after 2 sec
+    } catch(e) {
+        alert("Error sending data");
+        console.error(e);
+    }
+    btn.innerText = "Save / Update Record"; btn.disabled = false;
+}
+
+// 4. DELETE
+async function deleteRecord(rowIndex) {
+    if(!confirm("Are you sure you want to delete this record?")) return;
+    
+    try {
+        await fetch(SCRIPT_URL, {
+            method: "POST",
+            mode: "no-cors",
+            body: JSON.stringify({ action: "delete", rowIndex: rowIndex })
+        });
+        alert("Deleted Request Sent.");
+        setTimeout(loadData, 2000);
+    } catch(e) { alert("Error deleting."); }
+}
+
+function clearForm() {
+    document.querySelectorAll("input, textarea").forEach(el => el.value = "");
+    document.getElementById('editRowIndex').value = "";
+    document.getElementById('saveBtn').innerText = "Save Record";
+    document.getElementById('prev_aswas_img').innerText = "";
+    document.getElementById('prev_asis_img').innerText = "";
+}
+
+// --- PREVIEW LOGIC ---
 function generatePreview() {
-    // Fill text
+    // Standard preview from form values
+    fillPreviewFromForm();
+    document.getElementById('previewModal').style.display = 'flex';
+}
+
+function generatePreviewFromData(index) {
+    // Load data into form first, then show preview
+    loadRecordIntoForm(index);
+    fillPreviewFromForm();
+    
+    // Handle images specifically for stored URLs
+    const r = allRecords[index];
+    const setImg = (id, src) => { 
+        const el = document.getElementById(id); 
+        if(src && src.startsWith('http')){ el.src=src; el.style.display='block'; }
+        else { el.style.display='none'; } 
+    };
+    
+    // Override standard image loading if we have stored URLs and no new file selected
+    if(!imgData.asWas && r.asWasImg) setImg('p_aswas_img', r.asWasImg);
+    if(!imgData.asIs && r.asIsImg) setImg('p_asis_img', r.asIsImg);
+
+    document.getElementById('previewModal').style.display = 'flex';
+}
+
+function fillPreviewFromForm() {
     document.getElementById('p_topic').innerText = document.getElementById('topic').value;
     document.getElementById('p_plant').innerText = document.getElementById('plant').value;
     document.getElementById('p_area').innerText = document.getElementById('area').value;
@@ -209,72 +396,27 @@ function generatePreview() {
     document.getElementById('p_status').innerText = document.getElementById('status').value;
     document.getElementById('p_remarks').innerText = document.getElementById('remarks').value;
     document.getElementById('p_eta').innerText = document.getElementById('eta').value;
-    document.getElementById('p_aswas_cap').innerText = document.getElementById('aswas_cap').value;
-    document.getElementById('p_asis_cap').innerText = document.getElementById('asis_cap').value;
     
-    // Lists
     const makeList = (txt) => txt.split('\n').map(i => i.trim() ? `<li>${i}</li>` : '').join('');
     document.getElementById('p_aswas_list').innerHTML = makeList(document.getElementById('aswas_points').value);
     document.getElementById('p_asis_list').innerHTML = makeList(document.getElementById('asis_points').value);
 
-    // Images
+    // Default Image Handling (Local Files)
     const setImg = (id, src) => { const el = document.getElementById(id); if(src){ el.src=src; el.style.display='block'; } else { el.style.display='none'; } };
-    setImg('p_aswas_img', imgData.asWas);
-    setImg('p_asis_img', imgData.asIs);
-
-    document.getElementById('previewModal').style.display = 'flex';
+    if(imgData.asWas) setImg('p_aswas_img', imgData.asWas);
+    if(imgData.asIs) setImg('p_asis_img', imgData.asIs);
 }
 
 function closeModal() { document.getElementById('previewModal').style.display = 'none'; }
-
 function downloadPDF() {
     const element = document.getElementById('slide-to-print');
-    const topic = document.getElementById('topic').value;
+    const topic = document.getElementById('topic').value || "Kaizen";
     html2pdf().set({ margin:0, filename: `Kaizen_${topic}.pdf`, image:{type:'jpeg',quality:0.98}, html2canvas:{scale:2, useCORS:true}, jsPDF:{unit:'mm', format:'a4', orientation:'landscape'} }).from(element).save();
 }
 
-// SAVE TO GOOGLE SHEET (FETCH API)
-function saveToGoogleSheet() {
-    const btn = document.getElementById('saveBtn');
-    if(!SCRIPT_URL.includes("script.google.com")) { alert("Please paste the Script URL in code line 185!"); return; }
-    
-    btn.innerText = "Saving..."; btn.disabled = true;
-
-    const payload = {
-        topic: document.getElementById('topic').value,
-        plant: document.getElementById('plant').value,
-        area: document.getElementById('area').value,
-        effect: document.getElementById('effect').value,
-        proposer: document.getElementById('proposer').value,
-        asWasPoints: document.getElementById('aswas_points').value,
-        asWasImgData: imgData.asWas, asWasImgName: imgData.asWasName,
-        asIsPoints: document.getElementById('asis_points').value,
-        asIsImgData: imgData.asIs, asIsImgName: imgData.asIsName, asIsVideo: document.getElementById('asis_video').value,
-        benefits: document.getElementById('benefits').value,
-        status: document.getElementById('status').value, statusRemarks: document.getElementById('remarks').value, eta: document.getElementById('eta').value
-    };
-
-    fetch(SCRIPT_URL, {
-        method: "POST",
-        mode: "no-cors", // Important for Google Script
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: payload })
-    })
-    .then(response => {
-        // 'no-cors' mode opaque response deta hai, hum assume karte hain success
-        alert("Request Sent! Check Google Sheet.");
-        btn.innerText = "Save to Google Sheet";
-        btn.disabled = false;
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert("Failed to save.");
-        btn.innerText = "Save to Google Sheet";
-        btn.disabled = false;
-    });
-}
+// Load data on start
+loadData();
 </script>
 
 </body>
 </html>
-
