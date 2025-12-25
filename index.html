@@ -1,0 +1,526 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>ODM_Best_Practices_Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  
+  <!-- html2pdf Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <style>
+    /* --- GENERAL APP STYLES (Data Entry) --- */
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background: #f0f2f5; }
+    .card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 1000px; margin: auto; }
+    
+    .header-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
+    .header-row h2 { color: #0369a1; margin: 0; }
+    .app-logo { height: 50px; object-fit: contain; }
+
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
+    label { font-weight: bold; font-size: 12px; color: #555; display: block; margin-bottom: 5px; }
+    input, textarea, select { padding: 9px; width: 100%; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; background: #fafafa; }
+    input:focus, textarea:focus { border-color: #0369a1; background: #fff; outline: none; }
+    
+    .btn { background: #0369a1; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+    .btn:hover { background: #025686; transform: translateY(-1px); }
+    .btn.secondary { background: #6b7280; }
+    .btn.danger { background: #dc3545; }
+    .btn.success { background: #28a745; }
+    
+    /* --- DATA TABLE --- */
+    table.data-table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #fff; font-size: 13px; border-radius: 8px; overflow: hidden; }
+    .data-table th, .data-table td { border-bottom: 1px solid #eee; padding: 12px; text-align: left; vertical-align: middle; }
+    .data-table th { background: #0369a1; color: white; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+    .data-table tr:hover { background: #f9fbfd; }
+    .thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; }
+
+    /* --- MODAL FOR PREVIEW --- */
+    .modal { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.6); display:none; justify-content:center; align-items:center; z-index: 1000; backdrop-filter: blur(2px); }
+    .modal-content { background: #525659; width: 95%; height: 95vh; display: flex; flex-direction: column; border-radius: 8px; overflow: hidden; }
+    .modal-header { padding: 10px 20px; background: #f8f9fa; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; }
+    .modal-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; justify-content: center; align-items: flex-start; }
+    .modal-footer { padding: 10px 20px; background: #fff; text-align: right; border-top: 1px solid #ddd; }
+
+    /* =========================================
+       SPECIFIC "BEST PRACTICES" SLIDE CSS
+       ========================================= */
+    .slide-container {
+        width: 297mm; /* A4 Landscape width */
+        height: 200mm; /* Slightly less than A4 height to fit margins */
+        background: white;
+        padding: 30px 40px;
+        box-sizing: border-box;
+        position: relative;
+        box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        display: flex;
+        flex-direction: column;
+        font-family: 'Calibri', 'Arial', sans-serif;
+    }
+
+    /* Header */
+    .slide-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+    .slide-title { font-size: 42px; font-weight: bold; color: #1f3d6e; /* Dark Blue */ margin: 0; font-family: 'Georgia', serif; }
+    .slide-logo { height: 50px; }
+
+    /* Top Info Table */
+    .top-info-table { border-collapse: collapse; font-size: 12px; width: 350px; margin-left: auto; margin-bottom: 10px; text-align: center; }
+    .top-info-table th { background: #f2f2f2; border: 1px solid #ccc; padding: 5px; font-weight: bold; color: #000; }
+    .top-info-table td { border: 1px solid #ccc; padding: 5px; background: #fff; }
+    .effect-text { color: #00b050; font-weight: bold; }
+
+    /* Topic Line */
+    .topic-line { font-size: 20px; font-weight: bold; margin-bottom: 20px; display: flex; align-items: center; }
+    .topic-label { color: #c00000; margin-right: 5px; } /* Red Color */
+    .topic-text { color: #0070c0; } /* Blue Color */
+    .square-bullet { display: inline-block; width: 10px; height: 10px; border: 1px solid #555; margin-right: 5px; }
+
+    /* Main Content Grid */
+    .content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; flex: 1; }
+    
+    /* As-Was / As-Is Boxes */
+    .column-box { display: flex; flex-direction: column; height: 100%; border-left: 1px solid #eee; padding-left: 10px; }
+    
+    .section-header { 
+        background-color: #367fa9; /* Blue bg */
+        color: white; 
+        font-weight: bold; 
+        padding: 5px 15px; 
+        border-radius: 0 15px 15px 0; /* Rounded right side */
+        width: fit-content;
+        margin-bottom: 15px;
+        font-size: 18px;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+    }
+
+    .bullet-list { list-style: none; padding: 0; margin: 0 0 20px 0; font-size: 14px; color: #333; line-height: 1.5; }
+    .bullet-list li { margin-bottom: 8px; position: relative; padding-left: 15px; }
+    .bullet-list li::before { content: "▪"; color: #000; font-size: 18px; position: absolute; left: 0; top: -3px; }
+
+    /* Image Area */
+    .visual-area { 
+        flex: 1; 
+        border: 1px dashed #ccc; 
+        display: flex; 
+        justify-content: center; 
+        align-items: center; 
+        background: #fdfdfd; 
+        position: relative;
+        min-height: 200px;
+    }
+    .visual-img { max-width: 100%; max-height: 250px; object-fit: contain; }
+    .visual-caption { text-align: center; font-size: 12px; color: #0070c0; margin-top: 5px; font-weight: bold; }
+
+    /* Footer Benefits Section */
+    .footer-section { margin-top: auto; display: flex; border: 1px solid #ccc; font-size: 12px; }
+    .benefits-label { 
+        background-color: #2e75b6; /* Blue */
+        color: white; 
+        font-weight: bold; 
+        font-size: 18px; 
+        padding: 10px 20px; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center;
+        width: 120px;
+    }
+    .benefits-text { padding: 10px; display: flex; align-items: center; flex: 1; font-size: 14px; }
+    
+    .status-table { border-collapse: collapse; font-size: 11px; width: 400px; text-align: center; }
+    .status-table th { background: #ed7d31; color: white; border: 1px solid white; padding: 5px; } /* Orange Header */
+    .status-table td { border: 1px solid white; padding: 5px; background: #fbe5d6; }
+    .status-green { background: #92d050 !important; color: black; font-weight: bold; }
+
+  </style>
+</head>
+
+<body>
+
+<div class="card">
+  <div class="header-row">
+      <h2>ODM Dashboard (Best Practices Format)</h2>
+      <img src="https://i.postimg.cc/5y7SN4xc/logo.png" class="app-logo" alt="Logo">
+  </div>
+
+  <input type="hidden" id="editRowIndex">
+
+  <!-- Form Inputs -->
+  <div class="form-grid">
+      <div><label>Date</label><input id="date" type="date"></div>
+      <div><label>ODM / Plant</label><input id="odm" placeholder="e.g. Califonix"></div>
+      <div><label>Model</label><input id="model"></div>
+      <div><label>Area</label><input id="area" placeholder="e.g. Testing / Assembly"></div>
+  </div>
+
+  <div class="form-grid">
+      <div><label>Topic / Item Name</label><input id="item" placeholder="e.g. CTC Sensor Fail Prevention"></div>
+      <div><label>Defect Rate % (As-Was)</label><input id="defectRate" type="number" placeholder="%"></div>
+      <div><label>Proposer (Name)</label><input id="preparedBy"></div>
+      <div><label>Upload Images (1: As-Is, 2: As-Was)</label><input id="images" type="file" accept="image/*" multiple></div>
+  </div>
+
+  <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+      <div><label>As-Was (Problem Description)</label><textarea id="defectDetails" rows="3" placeholder="Enter bullet points for As-Was..."></textarea></div>
+      <div><label>As-Is (Solution/RCA)</label><textarea id="rca" rows="3" placeholder="Enter bullet points for As-Is..."></textarea></div>
+  </div>
+  
+  <div><label>Benefits / Remarks</label><input id="remarks" placeholder="e.g. Reduction of Sensor Fail PDI Rejection"></div>
+
+  <div style="margin-top:20px;">
+      <button id="saveBtn" class="btn">Save Record</button>
+      <button id="clearBtn" class="btn secondary">Clear Form</button>
+      <button id="refreshBtn" class="btn secondary" style="float:right">Refresh List</button>
+  </div>
+
+  <table id="dataTable" class="data-table">
+    <thead>
+      <tr><th>Date</th><th>Model</th><th>Topic</th><th>As-Was</th><th>As-Is</th><th>Action</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<!-- PREVIEW MODAL -->
+<div id="modal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 style="margin:0;">Format Preview</h3>
+      <button onclick="closeModal()" style="border:none; background:none; font-size:24px; cursor:pointer;">&times;</button>
+    </div>
+    
+    <div class="modal-body">
+      <!-- === THIS IS THE SLIDE AREA THAT WILL BE PRINTED === -->
+      <div id="printArea" class="slide-container">
+          
+          <!-- Slide Header -->
+          <div class="slide-header">
+              <h1 class="slide-title">Best Practices</h1>
+              <div style="text-align: right;">
+                  <!-- Logo Image -->
+                  <img src="https://i.postimg.cc/5y7SN4xc/logo.png" class="slide-logo" alt="CALIFONIX">
+                  
+                  <!-- Top Right Table -->
+                  <table class="top-info-table">
+                      <tr>
+                          <th>Plant</th>
+                          <th>Area</th>
+                          <th>Effect</th>
+                          <th>Proposer</th>
+                      </tr>
+                      <tr>
+                          <td id="slide_plant">Califonix</td>
+                          <td id="slide_area">Testing</td>
+                          <td class="effect-text">Quality Improvement</td>
+                          <td id="slide_proposer">Name</td>
+                      </tr>
+                  </table>
+              </div>
+          </div>
+
+          <!-- Topic Line -->
+          <div class="topic-line">
+              <span class="square-bullet"></span>
+              <span class="topic-label">Topic- </span>
+              <span class="topic-text" id="slide_topic">Prevention of leakage of CTC Sensor Fail</span>
+          </div>
+
+          <!-- Main Grid -->
+          <div class="content-grid">
+              
+              <!-- LEFT: AS-WAS -->
+              <div class="column-box">
+                  <div class="section-header">As-Was</div>
+                  <ul class="bullet-list" id="slide_aswas_text">
+                      <!-- Bullets injected via JS -->
+                  </ul>
+                  
+                  <!-- Visual (Chart or Image 2) -->
+                  <div class="visual-area">
+                      <img id="slide_img_old" class="visual-img" style="display:none;">
+                      <!-- Fallback text if no image -->
+                      <div id="chart_placeholder" style="text-align:center; display:none;">
+                          <div style="width:100px; height:150px; background:linear-gradient(to top, #ed7d31 70%, transparent 70%); margin:auto;"></div>
+                          <p>Rate: <span id="slide_rate_old"></span>%</p>
+                      </div>
+                  </div>
+                  <div class="visual-caption" id="caption_aswas">Prior to Implementation</div>
+              </div>
+
+              <!-- RIGHT: AS-IS -->
+              <div class="column-box">
+                  <div class="section-header">As-Is</div>
+                  <ul class="bullet-list" id="slide_asis_text">
+                      <!-- Bullets injected via JS -->
+                  </ul>
+
+                  <!-- Visual (Image 1 - The Solution) -->
+                  <div class="visual-area">
+                      <img id="slide_img_new" class="visual-img" src="">
+                  </div>
+                  <div class="visual-caption" id="caption_asis">After Implementation</div>
+              </div>
+
+          </div>
+
+          <!-- Footer Benefits -->
+          <div class="footer-section">
+              <div class="benefits-label">Benefits</div>
+              <div class="benefits-text">
+                  - <span id="slide_benefits">Reduction of Sensor Fail PDI Rejection</span>
+              </div>
+              
+              <table class="status-table">
+                  <tr>
+                      <th>Implementation Status</th>
+                      <th>Remarks</th>
+                      <th>ETA</th>
+                  </tr>
+                  <tr>
+                      <td class="status-green">Implemented</td>
+                      <td>-</td>
+                      <td>-</td>
+                  </tr>
+              </table>
+          </div>
+
+      </div>
+      <!-- === END SLIDE AREA === -->
+    </div>
+
+    <div class="modal-footer">
+        <button class="btn secondary" onclick="closeModal()">Edit</button>
+        <button class="btn success" onclick="downloadPDF()">Download PDF</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// UPDATE YOUR SCRIPT URL HERE
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwGCDn3USDWCByX5a-rgiZDkX-YwdfH4y1bd6_PgpLs-ZXgLo9FG5eboPSt4zKI8TfEcA/exec";
+
+let allData = [];
+
+// --- HELPER FUNCTIONS ---
+function escapeHtml(s){ return s ? String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;") : ""; }
+
+function readFilesAndCompress(files) {
+  return Promise.all([...files].map(file => new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        // Resize for performance
+        let w = img.width, h = img.height;
+        if(w > 800) { h *= 800/w; w = 800; }
+        canvas.width = w; canvas.height = h;
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve({ name: file.name, data: canvas.toDataURL('image/jpeg', 0.7) });
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  })));
+}
+
+// --- SAVE RECORD ---
+async function saveRecord(){
+  const btn = document.getElementById('saveBtn');
+  btn.innerText = "Processing..."; btn.disabled = true;
+
+  const fileInput = document.getElementById('images');
+  let imgs = [];
+  if(fileInput.files.length > 0) {
+      imgs = await readFilesAndCompress(fileInput.files);
+  }
+
+  const rowIndex = document.getElementById('editRowIndex').value;
+  const action = rowIndex ? "update" : "create";
+
+  if(action === "update" && imgs.length === 0){
+      let oldRow = allData.find(r => r._rowIndex == rowIndex);
+      if(oldRow && oldRow.ImageURLs) {
+          imgs = oldRow.ImageURLs.split(" || ").map(url => ({ data: url }));
+      }
+  }
+
+  let record = {
+    date: document.getElementById('date').value,
+    odm: document.getElementById('odm').value,
+    model: document.getElementById('model').value,
+    po: document.getElementById('area').value, // Using PO field as AREA
+    item: document.getElementById('item').value,
+    defectDetails: document.getElementById('defectDetails').value, // As-Was
+    defectRate: document.getElementById('defectRate').value,
+    rca: document.getElementById('rca').value, // As-Is
+    remarks: document.getElementById('remarks').value, 
+    preparedBy: document.getElementById('preparedBy').value,
+    images: imgs 
+  };
+
+  try {
+      let res = await fetch(SCRIPT_URL, { method:"POST", body: JSON.stringify({ action, record, rowIndex }) });
+      let j = await res.json();
+      if(j.status==="success"){
+        alert("✅ Record Saved!");
+        clearForm();
+        loadData();
+      } else { alert("Error: "+j.message); }
+  } catch(e){ console.error(e); alert("Network error."); }
+  
+  btn.innerText = "Save Record"; btn.disabled = false;
+}
+
+function clearForm(){
+  document.querySelectorAll('input, textarea').forEach(el => el.value = "");
+  document.getElementById('saveBtn').innerText = "Save Record";
+  document.getElementById('editRowIndex').value = "";
+}
+
+// --- LOAD DATA ---
+async function loadData(){
+  const tbody = document.querySelector("#dataTable tbody");
+  tbody.innerHTML = "<tr><td colspan='6' style='text-align:center;'>Loading...</td></tr>";
+  try {
+      let res = await fetch(SCRIPT_URL);
+      let j = await res.json();
+      allData = j.rows;
+      renderTable(j.rows);
+  } catch(e) { console.error(e); tbody.innerHTML = "<tr><td colspan='6'>Error Loading Data</td></tr>"; }
+}
+
+function renderTable(rows){
+  const tbody = document.querySelector("#dataTable tbody");
+  tbody.innerHTML = "";
+  if(rows.length === 0) { tbody.innerHTML = "<tr><td colspan='6' style='text-align:center'>No Data</td></tr>"; return; }
+  
+  rows.forEach((r) => {
+    let tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${(r.Date || "").replace("'","")}</td>
+      <td>${escapeHtml(r.Model)}</td>
+      <td>${escapeHtml(r.Item)}</td>
+      <td><small>${escapeHtml(r.DefectDetails).substring(0,30)}...</small></td>
+      <td><small>${escapeHtml(r.RCA).substring(0,30)}...</small></td>
+      <td>
+        <button class="btn success" style="padding:4px 8px;" onclick='openPreview(${JSON.stringify(r)})'>PDF</button>
+        <button class="btn secondary" style="padding:4px 8px;" onclick="editRecord(${r._rowIndex})">Edit</button>
+        <button class="btn danger" style="padding:4px 8px;" onclick="deleteRecord(${r._rowIndex})">Del</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function editRecord(rowIndex){
+  let r = allData.find(x => x._rowIndex == rowIndex);
+  if(!r) return;
+  document.getElementById('date').value = (r.Date || "").replace("'", "");
+  document.getElementById('odm').value = r.ODM;
+  document.getElementById('model').value = r.Model;
+  document.getElementById('area').value = r.PO; // Mapped as Area
+  document.getElementById('item').value = r.Item;
+  document.getElementById('defectDetails').value = r.DefectDetails;
+  document.getElementById('defectRate').value = r.DefectRate;
+  document.getElementById('rca').value = r.RCA;
+  document.getElementById('remarks').value = r.Remarks;
+  document.getElementById('preparedBy').value = r.PreparedBy;
+  document.getElementById('editRowIndex').value = rowIndex;
+  document.getElementById('saveBtn').innerText = "Update Record";
+  window.scrollTo(0,0);
+}
+
+async function deleteRecord(rowIndex){
+  if(!confirm("Delete this record?")) return;
+  await fetch(SCRIPT_URL,{ method:"POST", body: JSON.stringify({action:"delete", rowIndex}) });
+  loadData();
+}
+
+// --- SLIDE PREVIEW LOGIC ---
+function openPreview(r){
+    // Top Info
+    document.getElementById('slide_plant').innerText = r.ODM || "Califonix";
+    document.getElementById('slide_area').innerText = r.PO || "Testing"; // Using PO as Area
+    document.getElementById('slide_proposer').innerText = r.PreparedBy || "-";
+    
+    // Topic
+    document.getElementById('slide_topic').innerText = (r.Item || "Topic Name") + (r.Model ? ` (${r.Model})` : "");
+
+    // As-Was (Bullets)
+    let asWasHtml = "";
+    if(r.DefectDetails){
+        r.DefectDetails.split('\n').forEach(line => {
+            if(line.trim()) asWasHtml += `<li>${escapeHtml(line)}</li>`;
+        });
+    } else { asWasHtml = "<li>No details provided.</li>"; }
+    document.getElementById('slide_aswas_text').innerHTML = asWasHtml;
+
+    // As-Is (Bullets)
+    let asIsHtml = "";
+    if(r.RCA){
+        r.RCA.split('\n').forEach(line => {
+            if(line.trim()) asIsHtml += `<li>${escapeHtml(line)}</li>`;
+        });
+    } else { asIsHtml = "<li>No details provided.</li>"; }
+    document.getElementById('slide_asis_text').innerHTML = asIsHtml;
+
+    // Benefits
+    document.getElementById('slide_benefits').innerText = r.Remarks || "Standard Quality Improvement";
+
+    // Images Handling
+    const imgs = (r.ImageURLs || "").split(" || ").filter(Boolean);
+    const imgNew = document.getElementById('slide_img_new'); // Right side (As-Is)
+    const imgOld = document.getElementById('slide_img_old'); // Left side (As-Was)
+    const chartPlace = document.getElementById('chart_placeholder');
+
+    // Default: Image 1 goes to "As-Is" (Solution), Image 2 goes to "As-Was" (Problem)
+    if(imgs.length > 0) {
+        imgNew.src = imgs[0];
+        imgNew.style.display = 'block';
+    } else {
+        imgNew.style.display = 'none';
+    }
+
+    if(imgs.length > 1) {
+        imgOld.src = imgs[1];
+        imgOld.style.display = 'block';
+        chartPlace.style.display = 'none';
+        document.getElementById('caption_aswas').innerText = "Visual Evidence (Fail)";
+    } else {
+        // Show Chart Placeholder if no 2nd image
+        imgOld.style.display = 'none';
+        chartPlace.style.display = 'block';
+        document.getElementById('slide_rate_old').innerText = r.DefectRate || "0";
+        document.getElementById('caption_aswas').innerText = r.DefectRate ? "High Failure Rate" : "Issue Visualization";
+    }
+
+    document.getElementById('modal').style.display = 'flex';
+}
+
+function closeModal(){ document.getElementById('modal').style.display = 'none'; }
+
+function downloadPDF(){
+    const element = document.getElementById('printArea');
+    const topic = document.getElementById('slide_topic').innerText;
+    
+    const opt = {
+        margin: 0,
+        filename: `BestPractice_${topic}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } // Landscape Mode
+    };
+
+    html2pdf().set(opt).from(element).save();
+}
+
+// Initial Load
+document.getElementById('saveBtn').onclick = saveRecord;
+document.getElementById('clearBtn').onclick = clearForm;
+document.getElementById('refreshBtn').onclick = loadData;
+loadData();
+
+</script>
+</body>
+</html>
