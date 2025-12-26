@@ -69,6 +69,9 @@
     .status-table th { background: #ed7d31; color: white; padding: 5px; border: 1px solid white; }
     .status-table td { background: #fbe5d6; padding: 5px; border: 1px solid white; }
     .status-green { background: #92d050 !important; color: black; font-weight: bold; }
+
+    /* Loader style */
+    .loader { display: none; margin-left: 10px; font-size: 12px; color: #d24726; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -94,7 +97,6 @@
   </div>
 
   <div class="form-row">
-      <!-- As Was -->
       <div class="form-group" style="background:#f9f9f9; padding:10px;">
           <h3 style="margin-top:0; color:#c00000;">As-Was (Before)</h3>
           <label>Details</label><textarea id="aswas_points" rows="4"></textarea>
@@ -103,7 +105,6 @@
           <div id="prev_aswas_img" style="font-size:11px; color:blue;"></div>
       </div>
 
-      <!-- As Is -->
       <div class="form-group" style="background:#f0f8ff; padding:10px;">
           <h3 style="margin-top:0; color:#0070c0;">As-Is (After)</h3>
           <label>Details</label><textarea id="asis_points" rows="4"></textarea>
@@ -126,7 +127,9 @@
   <div style="text-align:center; margin-top:20px;">
       <button class="btn btn-save" id="saveBtn" onclick="saveData()">Save / Update Record</button>
       <button class="btn btn-sec" onclick="clearForm()">Clear Form</button>
-      <button class="btn btn-preview" onclick="generatePreview()">Preview PDF / PPT</button>
+      <!-- Preview Button with ID for Loading Text -->
+      <button class="btn btn-preview" id="viewBtn" onclick="generatePreviewFromForm(true)">Preview PDF / PPT</button>
+      <span id="loadingMsg" class="loader">Converting Images... Please Wait...</span>
   </div>
 </div>
 
@@ -135,9 +138,7 @@
     <h3>Existing Records</h3>
     <table class="data-table">
         <thead>
-            <tr>
-                <th>Date</th><th>Topic</th><th>Proposer</th><th>Status</th><th>Actions</th>
-            </tr>
+            <tr><th>Date</th><th>Topic</th><th>Proposer</th><th>Status</th><th>Actions</th></tr>
         </thead>
         <tbody id="tableBody">
             <tr><td colspan="5" style="text-align:center;">Click "Refresh Data" to load...</td></tr>
@@ -154,7 +155,6 @@
             <button class="btn btn-sec" onclick="closeModal()">Close</button>
         </div>
         
-        <!-- SLIDE CONTENT -->
         <div id="slide-to-print" class="slide">
             <div class="slide-header">
                 <h1 class="header-title">Best Practices</h1>
@@ -174,7 +174,7 @@
                     <div class="col-header">As-Was</div>
                     <ul id="p_aswas_list" class="bullet-points"></ul>
                     <div class="img-box">
-                        <img id="p_aswas_img" class="main-img" style="display:none;" crossorigin="anonymous">
+                        <img id="p_aswas_img" class="main-img" style="display:none;">
                         <div id="p_aswas_cap" class="img-caption"></div>
                     </div>
                 </div>
@@ -182,7 +182,7 @@
                     <div class="col-header">As-Is</div>
                     <ul id="p_asis_list" class="bullet-points"></ul>
                     <div class="img-box">
-                        <img id="p_asis_img" class="main-img" style="display:none;" crossorigin="anonymous">
+                        <img id="p_asis_img" class="main-img" style="display:none;">
                         <div id="p_asis_cap" class="img-caption"></div>
                         <div id="p_asis_vid" style="font-size:10px; color:blue;"></div>
                     </div>
@@ -201,24 +201,37 @@
 </div>
 
 <script>
-// !!! UPDATE SCRIPT URL !!!
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzcXvGx_kCBEawCt1S86xsxa64cOMBSQfqwTYqKHVv8iqy9N4X2rpn78z7oU4eo8fzF-w/exec"; 
 
 let imgData = { asWas: null, asIs: null, asWasName: "", asIsName: "" };
 let allRecords = [];
 
-// --- HELPER: THUMBNAIL LINK IS KEY FOR PREVIEWS ---
-function getThumbLink(url) {
-    if (!url) return "";
-    if (url.startsWith("data:") || url.startsWith("blob:")) return url;
-    
-    // Extract ID and use thumbnail endpoint (Works better than export=view)
+// --- CRITICAL FUNCTION: Fetch Image & Convert to Base64 ---
+// This solves the PPT issue and the PDF blank image issue
+async function urlToBase64(url) {
+    if (!url) return null;
+    if (url.startsWith("data:")) return url; // Already Base64
+
+    // Convert Drive Link to Thumbnail Link (CORS friendly)
+    let fetchUrl = url;
     const idMatch = url.match(/[-\w]{25,}/);
     if (idMatch && (url.includes("drive.google.com") || url.includes("docs.google.com"))) {
-        // sz=w1000 requests a large thumbnail which works across domains
-        return "https://drive.google.com/thumbnail?id=" + idMatch[0] + "&sz=w1000";
+        fetchUrl = "https://drive.google.com/thumbnail?id=" + idMatch[0] + "&sz=w1000";
     }
-    return url;
+
+    try {
+        const response = await fetch(fetchUrl, { mode: 'cors' });
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } catch (e) {
+        console.error("Image conversion failed:", e);
+        return null; // Fail gracefully
+    }
 }
 
 function previewFile(inputId) {
@@ -231,7 +244,7 @@ function previewFile(inputId) {
   if (file) reader.readAsDataURL(file);
 }
 
-// --- LOAD DATA ---
+// --- CRUD ---
 async function loadData() {
     const tbody = document.getElementById('tableBody');
     tbody.innerHTML = "<tr><td colspan='5' style='text-align:center;'>Loading...</td></tr>";
@@ -242,10 +255,7 @@ async function loadData() {
             allRecords = json.data;
             renderTable(allRecords);
         } else { alert("Error: " + json.message); }
-    } catch(e) { 
-        console.error(e);
-        tbody.innerHTML = "<tr><td colspan='5' style='color:red; text-align:center;'>Network Error</td></tr>"; 
-    }
+    } catch(e) { tbody.innerHTML = "<tr><td colspan='5' style='color:red; text-align:center;'>Network Error</td></tr>"; }
 }
 
 function renderTable(data) {
@@ -260,9 +270,9 @@ function renderTable(data) {
             <td>${row.proposer}</td>
             <td>${row.status}</td>
             <td>
-                <button class="btn btn-preview" style="font-size:11px;" onclick="loadRecordIntoForm(${index})">Edit</button>
+                <button class="btn btn-preview" style="font-size:11px;" onclick="loadRecordIntoForm(${index});">Edit</button>
                 <button class="btn btn-danger" style="font-size:11px;" onclick="deleteRecord(${row.rowIndex})">Delete</button>
-                <button class="btn btn-sec" style="font-size:11px;" onclick="generatePreviewFromData(${index})">View</button>
+                <button class="btn btn-sec" style="font-size:11px;" onclick="prepareView(${index})">View</button>
             </td>`;
         tbody.appendChild(tr);
     });
@@ -272,23 +282,12 @@ function loadRecordIntoForm(index) {
     const r = allRecords[index];
     document.getElementById('editRowIndex').value = r.rowIndex;
     
-    // Fill Text Inputs
-    document.getElementById('topic').value = r.topic || "";
-    document.getElementById('plant').value = r.plant || "";
-    document.getElementById('area').value = r.area || "";
-    document.getElementById('effect').value = r.effect || "";
-    document.getElementById('proposer').value = r.proposer || "";
+    ['topic','plant','area','effect','proposer','benefits','status','remarks'].forEach(id => document.getElementById(id).value = r[id] || "");
     
     document.getElementById('aswas_points').value = r.asWasPoints || "";
     document.getElementById('asis_points').value = r.asIsPoints || "";
     document.getElementById('asis_video').value = r.asIsVideo || "";
     
-    document.getElementById('benefits').value = r.benefits || "";
-    document.getElementById('status').value = r.status || "In Progress";
-    document.getElementById('remarks').value = r.remarks || "-";
-    
-    // Attempt to extract caption from saved image URL or filename logic
-    // Assuming simple logic: If caption isn't stored separately, we leave it blank or user fills it
     document.getElementById('aswas_cap').value = ""; 
     document.getElementById('asis_cap').value = ""; 
 
@@ -302,7 +301,12 @@ function loadRecordIntoForm(index) {
     window.scrollTo(0,0);
 }
 
-// --- SAVE / DELETE ---
+// Special function to load record THEN auto-generate preview with conversion
+async function prepareView(index) {
+    loadRecordIntoForm(index);
+    await generatePreviewFromForm(false); // Pass false to indicate this is from table
+}
+
 async function saveData() {
     const btn = document.getElementById('saveBtn');
     btn.innerText = "Processing..."; btn.disabled = true;
@@ -347,43 +351,15 @@ function clearForm() {
     document.getElementById('saveBtn').innerText = "Save Record";
 }
 
-// --- PREVIEW ---
-function generatePreview() { 
-    fillPreviewFromForm(); 
-    document.getElementById('previewModal').style.display = 'flex'; 
-}
-
-function generatePreviewFromData(index) {
-    loadRecordIntoForm(index);
-    fillPreviewFromForm();
+// --- PREVIEW LOGIC (UPDATED) ---
+async function generatePreviewFromForm(isManual) {
+    // Show loader
+    const loader = document.getElementById('loadingMsg');
+    loader.style.display = "inline-block";
     
-    const r = allRecords[index];
-    
-    // Setup Images using Thumbnail Link
-    const setImg = (id, url) => {
-        const el = document.getElementById(id);
-        if(url) {
-            // Use Thumbnail link for safety
-            el.src = getThumbLink(url);
-            el.style.display = 'block';
-        } else {
-            el.style.display = 'none';
-        }
-    };
-
-    // If no new upload, use saved record image
-    if(!imgData.asWas) setImg('p_aswas_img', r.asWasImg);
-    if(!imgData.asIs) setImg('p_asis_img', r.asIsImg);
-    
-    document.getElementById('previewModal').style.display = 'flex';
-}
-
-function fillPreviewFromForm() {
+    // Fill text fields
     const ids = ['topic','plant','area','effect','proposer','benefits','status','remarks','eta'];
-    ids.forEach(id => {
-        const val = document.getElementById(id).value;
-        document.getElementById('p_'+id).innerText = val;
-    });
+    ids.forEach(id => document.getElementById('p_'+id).innerText = document.getElementById(id).value);
     
     const makeList = (t) => t.split('\n').map(i=>i.trim()?`<li>${i}</li>`:'').join('');
     document.getElementById('p_aswas_list').innerHTML = makeList(document.getElementById('aswas_points').value);
@@ -392,10 +368,35 @@ function fillPreviewFromForm() {
     document.getElementById('p_aswas_cap').innerText = document.getElementById('aswas_cap').value;
     document.getElementById('p_asis_cap').innerText = document.getElementById('asis_cap').value;
 
-    // Direct Preview (Base64)
-    const setImg = (id, d) => { const el = document.getElementById(id); if(d){ el.src=d; el.style.display='block'; } };
-    if(imgData.asWas) setImg('p_aswas_img', imgData.asWas);
-    if(imgData.asIs) setImg('p_asis_img', imgData.asIs);
+    // HANDLE IMAGES: Either use new upload OR fetch saved URL and convert to Base64
+    const handleImg = async (imgId, localData, savedUrl) => {
+        const el = document.getElementById(imgId);
+        if (localData) {
+            el.src = localData; 
+            el.style.display = 'block';
+        } else if (savedUrl) {
+            // CONVERT URL TO BASE64 HERE
+            const base64 = await urlToBase64(savedUrl);
+            if (base64) {
+                el.src = base64;
+                el.style.display = 'block';
+            } else {
+                el.style.display = 'none';
+            }
+        } else {
+            el.style.display = 'none';
+        }
+    };
+
+    // Find current record to check for saved URLs
+    const idx = document.getElementById('editRowIndex').value;
+    let savedRec = allRecords.find(r => r.rowIndex == idx) || {};
+
+    await handleImg('p_aswas_img', imgData.asWas, savedRec.asWasImg);
+    await handleImg('p_asis_img', imgData.asIs, savedRec.asIsImg);
+
+    loader.style.display = "none";
+    document.getElementById('previewModal').style.display = 'flex';
 }
 
 function closeModal() { document.getElementById('previewModal').style.display = 'none'; }
@@ -412,55 +413,62 @@ function downloadPDF() {
     }).from(el).save();
 }
 
+// --- PPT GENERATION ---
 function downloadPPT() {
     let pres = new PptxGenJS();
     pres.layout = 'LAYOUT_WIDE'; 
 
     let slide = pres.addSlide();
 
-    // Header
+    // 1. HEADER
     slide.addText("Best Practices", { x: 0.5, y: 0.3, fontSize: 32, bold: true, color: '1F4E79', fontFace: 'Georgia' });
     slide.addImage({ path: "https://i.postimg.cc/5y7SN4xc/logo.png", x: 11.5, y: 0.2, w: 1.5, h: 0.6 });
 
-    // Table
-    let rows = [[
+    // 2. HEADER TABLE
+    slide.addTable([['Plant', 'Area', 'Effect', 'Proposer']], { x: 8, y: 0.9, w: 5, colW: [1.2, 1.2, 1.4, 1.2], fontSize: 11, align: 'center', fill: 'f2f2f2', bold: true, color: '000000', border: {pt:1, color:'bfbfbf'} });
+    slide.addTable([[
         document.getElementById('p_plant').innerText,
         document.getElementById('p_area').innerText,
         document.getElementById('p_effect').innerText,
         document.getElementById('p_proposer').innerText
-    ]];
-    slide.addTable([['Plant', 'Area', 'Effect', 'Proposer']], { x: 8, y: 0.9, w: 5, colW: [1.2, 1.2, 1.4, 1.2], fontSize: 11, align: 'center', fill: 'f2f2f2', bold: true, color: '000000', border: {pt:1, color:'bfbfbf'} });
-    slide.addTable(rows, { x: 8, y: 1.25, w: 5, colW: [1.2, 1.2, 1.4, 1.2], fontSize: 11, align: 'center', color: '000000', border: {pt:1, color:'bfbfbf'} });
+    ]], { x: 8, y: 1.25, w: 5, colW: [1.2, 1.2, 1.4, 1.2], fontSize: 11, align: 'center', color: '000000', border: {pt:1, color:'bfbfbf'} });
 
-    // Topic
+    // 3. TOPIC
     slide.addShape(pres.ShapeType.rect, { x: 0.5, y: 1.7, w: 0.15, h: 0.15, line: '555555', fill: 'ffffff' });
     slide.addText([
         { text: "Topic- ", options: { color: 'C00000', bold: true } },
         { text: document.getElementById('p_topic').innerText, options: { color: '0070C0' } }
     ], { x: 0.7, y: 1.6, w: 12, fontSize: 18, bold: true });
 
-    // Content
+    // 4. CONTENT AREA
     slide.addText("As-Was", { x: 0.5, y: 2.2, w: 1.5, h: 0.4, fill: '367FA9', color: 'FFFFFF', bold: true, align: 'center' });
     slide.addText("As-Is", { x: 7.0, y: 2.2, w: 1.5, h: 0.4, fill: '367FA9', color: 'FFFFFF', bold: true, align: 'center' });
 
     slide.addText(document.getElementById('aswas_points').value, { x: 0.5, y: 2.7, w: 6, h: 1.5, fontSize: 12, valign: 'top', bullet: true });
     slide.addText(document.getElementById('asis_points').value, { x: 7.0, y: 2.7, w: 6, h: 1.5, fontSize: 12, valign: 'top', bullet: true });
 
-    // Images logic
+    // 5. IMAGES (Use the src from the DOM, which is now guaranteed to be Base64 if loaded)
     const getSrc = (id) => {
         const el = document.getElementById(id);
-        return (el.style.display !== 'none' && el.src) ? el.src : null;
+        // Only return if visible and has data
+        return (el.style.display !== 'none' && el.src.startsWith('data:')) ? el.src : null;
     };
-    const asWasSrc = getSrc('p_aswas_img');
-    const asIsSrc = getSrc('p_asis_img');
+    
+    const asWasData = getSrc('p_aswas_img');
+    const asIsData = getSrc('p_asis_img');
 
-    if(asWasSrc) slide.addImage({ path: asWasSrc, x: 2.0, y: 4.3, w: 3, h: 2, sizing: { type: 'contain', w: 3, h: 2 } });
-    if(asIsSrc) slide.addImage({ path: asIsSrc, x: 8.5, y: 4.3, w: 3, h: 2, sizing: { type: 'contain', w: 3, h: 2 } });
+    // Add dashed borders
+    slide.addShape(pres.ShapeType.rect, { x: 0.5, y: 4.2, w: 6, h: 2.5, line: {type:'dash', color:'cccccc'}, fill:'fdfdfd' });
+    slide.addShape(pres.ShapeType.rect, { x: 7.0, y: 4.2, w: 6, h: 2.5, line: {type:'dash', color:'cccccc'}, fill:'fdfdfd' });
+
+    // PptxGenJS handles Base64 data via the 'data' property
+    if(asWasData) slide.addImage({ data: asWasData, x: 2.0, y: 4.3, w: 3, h: 2, sizing: { type: 'contain', w: 3, h: 2 } });
+    if(asIsData) slide.addImage({ data: asIsData, x: 8.5, y: 4.3, w: 3, h: 2, sizing: { type: 'contain', w: 3, h: 2 } });
 
     slide.addText(document.getElementById('p_aswas_cap').innerText, { x: 0.5, y: 6.3, w: 6, align: 'center', fontSize: 10, color: '2E75B6', bold: true });
     slide.addText(document.getElementById('p_asis_cap').innerText, { x: 7.0, y: 6.3, w: 6, align: 'center', fontSize: 10, color: '2E75B6', bold: true });
 
-    // Footer
+    // 6. FOOTER
     slide.addText("Benefits", { x: 0.5, y: 6.9, w: 1.2, h: 0.5, fill: '2E75B6', color: 'FFFFFF', bold: true, align: 'center' });
     slide.addText("- " + document.getElementById('p_benefits').innerText, { x: 1.7, y: 6.9, w: 5, h: 0.5, border: {pt:1, color:'cccccc'}, fontSize: 11, valign:'middle' });
 
