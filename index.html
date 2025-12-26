@@ -67,7 +67,8 @@
 <div class="control-panel">
   <!-- NEW: COMPANY LOGO ADDED HERE -->
   <div style="text-align: center; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
-      <img src="https://i.postimg.cc/5y7SN4xc/logo.png" style="height: 80px;" alt="Company Logo">
+      <!-- Added crossorigin here as well for safety -->
+      <img src="https://i.postimg.cc/5y7SN4xc/logo.png" crossorigin="anonymous" style="height: 80px;" alt="Company Logo">
   </div>
 
   <h2>
@@ -137,7 +138,7 @@
     </table>
 </div>
 
-<!-- PREVIEW MODAL (Same as before) -->
+<!-- PREVIEW MODAL -->
 <div id="previewModal" class="preview-modal">
     <div class="preview-content">
         <div style="text-align:right; margin-bottom:10px;">
@@ -264,11 +265,11 @@ function loadRecordIntoForm(arrayIndex) {
     document.getElementById('proposer').value = r.proposer;
     
     document.getElementById('aswas_points').value = r.asWasPoints;
-    document.getElementById('aswas_cap').value = r.asWasImg.split('_').pop(); 
+    document.getElementById('aswas_cap').value = r.asWasImg ? r.asWasImg.split('_').pop() : ""; 
     document.getElementById('prev_aswas_img').innerText = r.asWasImg ? "Previous Image Exists" : "No Image";
     
     document.getElementById('asis_points').value = r.asIsPoints;
-    document.getElementById('asis_cap').value = r.asIsImg.split('_').pop();
+    document.getElementById('asis_cap').value = r.asIsImg ? r.asIsImg.split('_').pop() : "";
     document.getElementById('asis_video').value = r.asIsVideo;
     document.getElementById('prev_asis_img').innerText = r.asIsImg ? "Previous Image Exists" : "No Image";
 
@@ -373,12 +374,21 @@ function generatePreviewFromData(index) {
     fillPreviewFromForm();
     
     const r = allRecords[index];
+    
+    // UPDATED FUNCTION: Handles CORS for saved images
     const setImg = (id, src) => { 
         const el = document.getElementById(id); 
-        if(src && src.startsWith('http')){ el.src=src; el.style.display='block'; }
-        else { el.style.display='none'; } 
+        if(src && src.startsWith('http')){ 
+            el.setAttribute('crossOrigin', 'anonymous'); // FIX FOR PDF
+            el.src = src; 
+            el.style.display='block'; 
+        }
+        else { 
+            el.style.display='none'; 
+        } 
     };
     
+    // Check if new image is not uploaded (imgData is null) but old image exists
     if(!imgData.asWas && r.asWasImg) setImg('p_aswas_img', r.asWasImg);
     if(!imgData.asIs && r.asIsImg) setImg('p_asis_img', r.asIsImg);
 
@@ -400,16 +410,28 @@ function fillPreviewFromForm() {
     document.getElementById('p_aswas_list').innerHTML = makeList(document.getElementById('aswas_points').value);
     document.getElementById('p_asis_list').innerHTML = makeList(document.getElementById('asis_points').value);
 
+    // This handles direct upload previews (Data URI - No CORS issue usually)
     const setImg = (id, src) => { const el = document.getElementById(id); if(src){ el.src=src; el.style.display='block'; } else { el.style.display='none'; } };
     if(imgData.asWas) setImg('p_aswas_img', imgData.asWas);
     if(imgData.asIs) setImg('p_asis_img', imgData.asIs);
 }
 
 function closeModal() { document.getElementById('previewModal').style.display = 'none'; }
+
 function downloadPDF() {
     const element = document.getElementById('slide-to-print');
     const topic = document.getElementById('topic').value || "Kaizen";
-    html2pdf().set({ margin:0, filename: `Kaizen_${topic}.pdf`, image:{type:'jpeg',quality:0.98}, html2canvas:{scale:2, useCORS:true}, jsPDF:{unit:'mm', format:'a4', orientation:'landscape'} }).from(element).save();
+    
+    // UPDATED OPTIONS for Better Rendering
+    const opt = {
+      margin: 0,
+      filename: `Kaizen_${topic}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, allowTaint: true, scrollY: 0 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+    };
+
+    html2pdf().set(opt).from(element).save();
 }
 
 loadData();
@@ -417,5 +439,3 @@ loadData();
 
 </body>
 </html>
-
-
