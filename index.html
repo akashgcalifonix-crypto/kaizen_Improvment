@@ -56,10 +56,10 @@
     .col-header { background: linear-gradient(to right, #367fa9, #5c9ccc); color: white; font-weight: bold; padding: 5px 15px; border-radius: 0 10px 10px 0; font-size: 14pt; width: fit-content; margin-bottom: 15px; }
     .bullet-points { padding-left: 20px; margin: 0 0 15px 0; font-size: 12pt; line-height: 1.4; }
     
-    /* FIXED IMAGE BOX */
-    .img-box { border: 1px dashed #ccc; padding: 5px; text-align: center; height: 250px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #fdfdfd; overflow: hidden; }
-    .main-img { max-width: 100%; max-height: 220px; object-fit: contain; }
-    .img-caption { color: #2e75b6; font-size: 10pt; margin-top: 5px; font-weight: bold; }
+    /* UPDATED IMAGE BOX TO FIT CAPTION */
+    .img-box { border: 1px dashed #ccc; padding: 5px; text-align: center; height: auto; min-height: 250px; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; background: #fdfdfd; overflow: hidden; padding-bottom: 10px; }
+    .main-img { max-width: 100%; max-height: 220px; object-fit: contain; margin-bottom: 5px; }
+    .img-caption { color: #2e75b6; font-size: 12pt; margin-top: 5px; font-weight: bold; background: #eef7ff; width: 100%; padding: 2px 0; }
     
     .footer { margin-top: auto; display: flex; border: 1px solid #ccc; font-size: 11pt; }
     .benefits-label { background-color: #2e75b6; color: white; font-weight: bold; font-size: 14pt; padding: 10px; width: 120px; display: flex; align-items: center; justify-content: center; }
@@ -100,7 +100,7 @@
           <h3 style="margin-top:0; color:#c00000;">As-Was (Before)</h3>
           <label>Details</label><textarea id="aswas_points" rows="4"></textarea>
           <label>Upload Image</label><input type="file" id="aswas_img" onchange="previewFile('aswas_img')">
-          <label>Caption</label><input type="text" id="aswas_cap" placeholder="Enter caption...">
+          <label>Caption</label><input type="text" id="aswas_cap" placeholder="Write caption for As-Was image">
           <div id="prev_aswas_img" style="font-size:11px; color:blue;"></div>
       </div>
 
@@ -109,7 +109,7 @@
           <h3 style="margin-top:0; color:#0070c0;">As-Is (After)</h3>
           <label>Details</label><textarea id="asis_points" rows="4"></textarea>
           <label>Upload Image</label><input type="file" id="asis_img" onchange="previewFile('asis_img')">
-          <label>Caption</label><input type="text" id="asis_cap" placeholder="Enter caption...">
+          <label>Caption</label><input type="text" id="asis_cap" placeholder="Write caption for As-Is image">
           <label>Video Link</label><input type="text" id="asis_video">
           <div id="prev_asis_img" style="font-size:11px; color:blue;"></div>
       </div>
@@ -128,7 +128,7 @@
       <button class="btn btn-save" id="saveBtn" onclick="saveData()">Save / Update Record</button>
       <button class="btn btn-sec" onclick="clearForm()">Clear Form</button>
       <button class="btn btn-preview" id="viewBtn" onclick="generatePreviewFromForm()">Preview PDF / PPT</button>
-      <span id="loadingMsg" class="loader">🔄 Processing Images for Download... Please Wait...</span>
+      <span id="loadingMsg" class="loader">🔄 Processing Images... Please Wait...</span>
   </div>
 </div>
 
@@ -207,19 +207,16 @@ let imgData = { asWas: null, asIs: null, asWasName: "", asIsName: "" };
 let allRecords = [];
 
 // --- MAGICAL FUNCTION: Fix Google Drive Links ---
-// This uses 'lh3.googleusercontent.com' which allows downloading (CORS)
 async function urlToBase64(url) {
     if (!url) return null;
     if (url.startsWith("data:")) return url; 
 
-    // Extract ID
     const idMatch = url.match(/[-\w]{25,}/);
     if (!idMatch) return url;
 
     const fileId = idMatch[0];
-    
-    // This specific Google URL allows Cross-Origin requests better than drive.google.com
-    const magicUrl = `https://lh3.googleusercontent.com/d/${fileId}=s2000`; // s2000 = size 2000px
+    // Magic URL for CORS access
+    const magicUrl = `https://lh3.googleusercontent.com/d/${fileId}=s2000`; 
 
     try {
         const response = await fetch(magicUrl, { mode: 'cors' });
@@ -227,11 +224,11 @@ async function urlToBase64(url) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onloadend = () => resolve(reader.result);
-            reader.onerror = () => resolve(url); // Fallback if conversion fails
+            reader.onerror = () => resolve(url);
             reader.readAsDataURL(blob);
         });
     } catch (e) {
-        console.warn("Direct fetch failed, returning original URL:", e);
+        console.warn("Fetch failed, using original:", e);
         return url; 
     }
 }
@@ -284,20 +281,16 @@ function loadRecordIntoForm(index) {
     const r = allRecords[index];
     document.getElementById('editRowIndex').value = r.rowIndex;
     
-    // Safely load values
     ['topic','plant','area','effect','proposer','benefits','status','remarks'].forEach(id => document.getElementById(id).value = r[id] || "");
     
     document.getElementById('aswas_points').value = r.asWasPoints || "";
     document.getElementById('asis_points').value = r.asIsPoints || "";
     document.getElementById('asis_video').value = r.asIsVideo || "";
     
-    // Load Captions (If null, empty string)
-    document.getElementById('aswas_cap').value = "";
-    document.getElementById('asis_cap').value = "";
+    // LOAD CAPTIONS (If they exist in sheet)
+    document.getElementById('aswas_cap').value = r.asWasCaption || ""; 
+    document.getElementById('asis_cap').value = r.asIsCaption || ""; 
     
-    // Note: If you have a column for caption in your sheet, add logic here. 
-    // Currently relying on user to re-enter or keep empty for view.
-
     if(r.eta) { const d = new Date(r.eta); document.getElementById('eta').value = d.toISOString().split('T')[0]; }
 
     document.getElementById('prev_aswas_img').innerText = r.asWasImg ? "Image Available" : "No Image";
@@ -330,11 +323,13 @@ async function saveData() {
             
             asWasPoints: document.getElementById('aswas_points').value,
             asWasImgData: imgData.asWas, 
-            asWasImgName: imgData.asWas ? "img_aswas.jpg" : "", 
+            asWasImgName: imgData.asWas ? "img_aswas.jpg" : "",
+            asWasCaption: document.getElementById('aswas_cap').value, // Sending Caption
             
             asIsPoints: document.getElementById('asis_points').value,
             asIsImgData: imgData.asIs, 
             asIsImgName: imgData.asIs ? "img_asis.jpg" : "",
+            asIsCaption: document.getElementById('asis_cap').value, // Sending Caption
             
             asIsVideo: document.getElementById('asis_video').value,
             benefits: document.getElementById('benefits').value,
@@ -366,7 +361,6 @@ async function generatePreviewFromForm() {
     const loader = document.getElementById('loadingMsg');
     loader.style.display = "inline-block";
     
-    // Fill text
     const ids = ['topic','plant','area','effect','proposer','benefits','status','remarks','eta'];
     ids.forEach(id => document.getElementById('p_'+id).innerText = document.getElementById(id).value);
     
@@ -374,20 +368,16 @@ async function generatePreviewFromForm() {
     document.getElementById('p_aswas_list').innerHTML = makeList(document.getElementById('aswas_points').value);
     document.getElementById('p_asis_list').innerHTML = makeList(document.getElementById('asis_points').value);
     
-    // Fill Captions (Fix for "Caption missing")
-    const asWasCap = document.getElementById('aswas_cap').value;
-    const asIsCap = document.getElementById('asis_cap').value;
-    document.getElementById('p_aswas_cap').innerText = asWasCap || (document.getElementById('prev_aswas_img').innerText.includes('Available') ? "As-Was Stage" : "");
-    document.getElementById('p_asis_cap').innerText = asIsCap || (document.getElementById('prev_asis_img').innerText.includes('Available') ? "As-Is Stage" : "");
+    // SET CAPTIONS IN PREVIEW
+    document.getElementById('p_aswas_cap').innerText = document.getElementById('aswas_cap').value;
+    document.getElementById('p_asis_cap').innerText = document.getElementById('asis_cap').value;
 
-    // HANDLE IMAGES
     const handleImg = async (imgId, localData, savedRecImg) => {
         const el = document.getElementById(imgId);
         if (localData) {
             el.src = localData; 
             el.style.display = 'block';
         } else if (savedRecImg) {
-            // CONVERT DRIVE URL TO BASE64
             const base64 = await urlToBase64(savedRecImg);
             el.src = base64;
             el.style.display = 'block';
@@ -396,7 +386,6 @@ async function generatePreviewFromForm() {
         }
     };
 
-    // Find saved URL if existing record
     const idx = document.getElementById('editRowIndex').value;
     let savedRec = allRecords.find(r => r.rowIndex == idx) || {};
 
@@ -430,7 +419,7 @@ function downloadPPT() {
     slide.addText("Best Practices", { x: 0.5, y: 0.3, fontSize: 32, bold: true, color: '1F4E79', fontFace: 'Georgia' });
     slide.addImage({ path: "https://i.postimg.cc/5y7SN4xc/logo.png", x: 11.5, y: 0.2, w: 1.5, h: 0.6 });
 
-    // 2. HEADER TABLE
+    // 2. TABLES
     slide.addTable([['Plant', 'Area', 'Effect', 'Proposer']], { x: 8, y: 0.9, w: 5, colW: [1.2, 1.2, 1.4, 1.2], fontSize: 11, align: 'center', fill: 'f2f2f2', bold: true, color: '000000', border: {pt:1, color:'bfbfbf'} });
     slide.addTable([[
         document.getElementById('p_plant').innerText,
@@ -453,29 +442,24 @@ function downloadPPT() {
     slide.addText(document.getElementById('aswas_points').value, { x: 0.5, y: 2.7, w: 6, h: 1.5, fontSize: 12, valign: 'top', bullet: true });
     slide.addText(document.getElementById('asis_points').value, { x: 7.0, y: 2.7, w: 6, h: 1.5, fontSize: 12, valign: 'top', bullet: true });
 
-    // 5. IMAGES (Using Base64 Data from DOM)
-    const getSrc = (id) => {
-        const el = document.getElementById(id);
-        return (el.style.display !== 'none' && el.src.startsWith('data:')) ? el.src : null;
-    };
-    
+    // 5. IMAGES
+    const getSrc = (id) => { const el = document.getElementById(id); return (el.style.display !== 'none' && el.src.startsWith('data:')) ? el.src : null; };
     const asWasData = getSrc('p_aswas_img');
     const asIsData = getSrc('p_asis_img');
 
-    // Boxes
     slide.addShape(pres.ShapeType.rect, { x: 0.5, y: 4.2, w: 6, h: 2.5, line: {type:'dash', color:'cccccc'}, fill:'fdfdfd' });
     slide.addShape(pres.ShapeType.rect, { x: 7.0, y: 4.2, w: 6, h: 2.5, line: {type:'dash', color:'cccccc'}, fill:'fdfdfd' });
 
     if(asWasData) slide.addImage({ data: asWasData, x: 2.0, y: 4.3, w: 3, h: 2, sizing: { type: 'contain', w: 3, h: 2 } });
     if(asIsData) slide.addImage({ data: asIsData, x: 8.5, y: 4.3, w: 3, h: 2, sizing: { type: 'contain', w: 3, h: 2 } });
 
-    slide.addText(document.getElementById('p_aswas_cap').innerText, { x: 0.5, y: 6.3, w: 6, align: 'center', fontSize: 10, color: '2E75B6', bold: true });
-    slide.addText(document.getElementById('p_asis_cap').innerText, { x: 7.0, y: 6.3, w: 6, align: 'center', fontSize: 10, color: '2E75B6', bold: true });
+    // 6. CAPTIONS (Moved slightly down to fit under image)
+    slide.addText(document.getElementById('p_aswas_cap').innerText, { x: 0.5, y: 6.4, w: 6, align: 'center', fontSize: 10, color: '2E75B6', bold: true });
+    slide.addText(document.getElementById('p_asis_cap').innerText, { x: 7.0, y: 6.4, w: 6, align: 'center', fontSize: 10, color: '2E75B6', bold: true });
 
-    // 6. FOOTER
+    // 7. FOOTER
     slide.addText("Benefits", { x: 0.5, y: 6.9, w: 1.2, h: 0.5, fill: '2E75B6', color: 'FFFFFF', bold: true, align: 'center' });
     slide.addText("- " + document.getElementById('p_benefits').innerText, { x: 1.7, y: 6.9, w: 5, h: 0.5, border: {pt:1, color:'cccccc'}, fontSize: 11, valign:'middle' });
-
     slide.addTable([['Implementation Status', 'Remarks', 'ETA']], { x: 7.5, y: 6.9, w: 5.5, colW: [2, 2, 1.5], fontSize: 10, align: 'center', fill: 'ED7D31', color: 'FFFFFF', bold: true, border: {pt:1, color:'ffffff'} });
     slide.addTable([[document.getElementById('p_status').innerText, document.getElementById('p_remarks').innerText, document.getElementById('p_eta').innerText]], { x: 7.5, y: 7.2, w: 5.5, colW: [2, 2, 1.5], fontSize: 10, align: 'center', fill: 'FBE5D6', color: '000000', border: {pt:1, color:'ffffff'} });
 
