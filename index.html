@@ -1,195 +1,3 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Improvments Tracker</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- HTML2PDF -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-  
-  <style>
-    body { font-family: 'Segoe UI', sans-serif; background: #f4f4f9; padding: 20px; }
-    .control-panel { max-width: 1000px; margin: 0 auto 30px auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    h2 { color: #1f4e79; border-bottom: 2px solid #eee; padding-bottom: 10px; display:flex; justify-content:space-between; }
-    
-    .form-row { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; }
-    .form-group { flex: 1; min-width: 200px; }
-    label { display: block; font-size: 12px; font-weight: bold; color: #555; margin-bottom: 5px; }
-    input, select, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-    
-    .btn { padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; margin-right: 5px; }
-    .btn-save { background: #1f4e79; }
-    .btn-preview { background: #ed7d31; }
-    .btn-danger { background: #dc3545; }
-    .btn-sec { background: #6c757d; }
-    
-    /* TABLE STYLES */
-    .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
-    .data-table th, .data-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    .data-table th { background-color: #1f4e79; color: white; }
-    .data-table tr:hover { background-color: #f1f1f1; }
-
-    /* PREVIEW MODAL & SLIDE CSS (Hidden by default) */
-    .preview-modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; overflow-y: auto; padding-top: 20px; }
-    .preview-content { background: #555; padding: 20px; border-radius: 5px; width: fit-content; }
-    
-    .slide { width: 297mm; height: 210mm; background: white; padding: 10mm; position: relative; display: flex; flex-direction: column; font-family: 'Calibri', sans-serif; box-sizing: border-box;}
-    .slide-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
-    .header-title { font-size: 36pt; font-weight: bold; color: #1f4e79; font-family: 'Georgia', serif; margin: 0; }
-    .logo-area { text-align: right; }
-    .califonix-logo { height: 40px; margin-bottom: 5px; }
-    .top-table { border-collapse: collapse; width: 400px; font-size: 11pt; text-align: center; float: right; }
-    .top-table th { background: #f2f2f2; border: 1px solid #bfbfbf; padding: 4px; font-weight: bold; color: #000; }
-    .top-table td { border: 1px solid #bfbfbf; padding: 4px; }
-    .text-green { color: #00b050; font-weight: bold; }
-    .topic-row { clear: both; margin-bottom: 10px; font-size: 18pt; font-weight: bold; display: flex; align-items: center; }
-    .square { width: 12px; height: 12px; border: 2px solid #555; margin-right: 8px; display: inline-block; }
-    .topic-label { color: #c00000; margin-right: 5px; }
-    .topic-val { color: #0070c0; }
-    .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex-grow: 1; border-top: 2px solid #eee; padding-top: 10px; }
-    .col-header { background: linear-gradient(to right, #367fa9, #5c9ccc); color: white; font-weight: bold; padding: 5px 15px; border-radius: 0 10px 10px 0; font-size: 14pt; width: fit-content; margin-bottom: 15px; box-shadow: 2px 2px 5px rgba(0,0,0,0.2); }
-    .bullet-points { padding-left: 20px; margin: 0 0 15px 0; font-size: 12pt; line-height: 1.4; }
-    .bullet-points li { margin-bottom: 8px; }
-    .img-box { border: 1px dashed #ccc; padding: 5px; text-align: center; height: 250px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #fdfdfd; }
-    .main-img { max-width: 100%; max-height: 220px; object-fit: contain; }
-    .img-caption { color: #2e75b6; font-size: 10pt; margin-top: 5px; font-weight: bold; }
-    .footer { margin-top: auto; display: flex; border: 1px solid #ccc; font-size: 11pt; }
-    .benefits-label { background-color: #2e75b6; color: white; font-weight: bold; font-size: 14pt; padding: 10px; width: 120px; display: flex; align-items: center; justify-content: center; }
-    .benefits-content { flex: 1; padding: 10px; display: flex; align-items: center; }
-    .status-table { border-collapse: collapse; width: 450px; text-align: center; font-size: 10pt; }
-    .status-table th { background: #ed7d31; color: white; padding: 5px; border: 1px solid white; }
-    .status-table td { background: #fbe5d6; padding: 5px; border: 1px solid white; }
-    .status-green { background: #92d050 !important; color: black; font-weight: bold; }
-  </style>
-</head>
-<body>
-
-<div class="control-panel">
-  <!-- NEW: COMPANY LOGO ADDED HERE -->
-  <div style="text-align: center; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
-      <!-- Added crossorigin here as well for safety -->
-      <img src="https://i.postimg.cc/5y7SN4xc/logo.png" crossorigin="anonymous" style="height: 80px;" alt="Company Logo">
-  </div>
-
-  <h2>
-    <span>Improvemnts Tracker</span>
-    <button class="btn btn-sec" onclick="loadData()">🔄 Refresh Data</button>
-  </h2>
-  
-  <input type="hidden" id="editRowIndex"> <!-- Hidden ID for Editing -->
-
-  <div class="form-row">
-      <div class="form-group"><label>Topic</label><input type="text" id="topic"></div>
-      <div class="form-group"><label>Plant</label><input type="text" id="plant" value="Califonix"></div>
-      <div class="form-group"><label>Area</label><input type="text" id="area"></div>
-      <div class="form-group"><label>Effect</label><input type="text" id="effect" value="Quality Improvement"></div>
-      <div class="form-group"><label>Proposer</label><input type="text" id="proposer"></div>
-  </div>
-
-  <div class="form-row">
-      <!-- As Was -->
-      <div class="form-group" style="background:#f9f9f9; padding:10px;">
-          <h3 style="margin-top:0; color:#c00000;">As-Was (Before)</h3>
-          <label>Details</label><textarea id="aswas_points" rows="4"></textarea>
-          <label>Upload Image</label><input type="file" id="aswas_img" onchange="previewFile('aswas_img')">
-          <label>Caption</label><input type="text" id="aswas_cap">
-          <div id="prev_aswas_img" style="font-size:11px; color:blue;"></div>
-      </div>
-
-      <!-- As Is -->
-      <div class="form-group" style="background:#f0f8ff; padding:10px;">
-          <h3 style="margin-top:0; color:#0070c0;">As-Is (After)</h3>
-          <label>Details</label><textarea id="asis_points" rows="4"></textarea>
-          <label>Upload Image</label><input type="file" id="asis_img" onchange="previewFile('asis_img')">
-          <label>Caption</label><input type="text" id="asis_cap">
-          <label>Video Link</label><input type="text" id="asis_video">
-          <div id="prev_asis_img" style="font-size:11px; color:blue;"></div>
-      </div>
-  </div>
-
-  <div class="form-row">
-      <div class="form-group"><label>Benefits</label><input type="text" id="benefits"></div>
-      <div class="form-group"><label>Status</label>
-        <select id="status"><option>Implemented</option><option>In Progress</option></select>
-      </div>
-      <div class="form-group"><label>Remarks</label><input type="text" id="remarks" value="-"></div>
-      <div class="form-group"><label>ETA</label><input type="date" id="eta"></div>
-  </div>
-
-  <div style="text-align:center; margin-top:20px;">
-      <button class="btn btn-save" id="saveBtn" onclick="saveData()">Save / Update Record</button>
-      <button class="btn btn-sec" onclick="clearForm()">Clear Form</button>
-      <button class="btn btn-preview" onclick="generatePreview()">Preview PDF</button>
-  </div>
-</div>
-
-<!-- DATA TABLE -->
-<div class="control-panel">
-    <h3>Existing Records</h3>
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>Date</th><th>Topic</th><th>Proposer</th><th>Status</th><th>Actions</th>
-            </tr>
-        </thead>
-        <tbody id="tableBody">
-            <tr><td colspan="5" style="text-align:center;">Click "Refresh Data" to load...</td></tr>
-        </tbody>
-    </table>
-</div>
-
-<!-- PREVIEW MODAL -->
-<div id="previewModal" class="preview-modal">
-    <div class="preview-content">
-        <div style="text-align:right; margin-bottom:10px;">
-            <button class="btn btn-save" onclick="downloadPDF()">Download PDF</button>
-            <button class="btn btn-sec" onclick="closeModal()">Close</button>
-        </div>
-        <div id="slide-to-print" class="slide">
-            <div class="slide-header">
-                <h1 class="header-title">Best Practices</h1>
-                <div class="logo-area">
-                    <img src="https://i.postimg.cc/5y7SN4xc/logo.png" class="califonix-logo" crossorigin="anonymous">
-                    <table class="top-table">
-                        <tr><th>Plant</th><th>Area</th><th>Effect</th><th>Proposer</th></tr>
-                        <tr><td id="p_plant"></td><td id="p_area"></td><td id="p_effect" class="text-green"></td><td id="p_proposer"></td></tr>
-                    </table>
-                </div>
-            </div>
-            <div class="topic-row">
-                <div class="square"></div><span class="topic-label">Topic- </span><span id="p_topic" class="topic-val"></span>
-            </div>
-            <div class="main-grid">
-                <div>
-                    <div class="col-header">As-Was</div>
-                    <ul id="p_aswas_list" class="bullet-points"></ul>
-                    <div class="img-box">
-                        <img id="p_aswas_img" class="main-img" style="display:none;">
-                        <div id="p_aswas_cap" class="img-caption"></div>
-                    </div>
-                </div>
-                <div>
-                    <div class="col-header">As-Is</div>
-                    <ul id="p_asis_list" class="bullet-points"></ul>
-                    <div class="img-box">
-                        <img id="p_asis_img" class="main-img" style="display:none;">
-                        <div id="p_asis_cap" class="img-caption"></div>
-                        <div id="p_asis_vid" style="font-size:10px; color:blue;"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="footer">
-                <div class="benefits-label">Benefits</div>
-                <div class="benefits-content">- <span id="p_benefits"></span></div>
-                <table class="status-table">
-                    <tr><th>Implementation Status</th><th>Remarks</th><th>ETA</th></tr>
-                    <tr><td id="p_status" class="status-green"></td><td id="p_remarks"></td><td id="p_eta"></td></tr>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
-
 <script>
 // !!! UPDATE SCRIPT URL HERE !!!
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzcXvGx_kCBEawCt1S86xsxa64cOMBSQfqwTYqKHVv8iqy9N4X2rpn78z7oU4eo8fzF-w/exec"; 
@@ -205,6 +13,21 @@ function previewFile(inputId) {
     else { imgData.asIs = reader.result; imgData.asIsName = file.name; }
   }
   if (file) reader.readAsDataURL(file);
+}
+
+// --- HELPER: Convert Drive Link to Direct Image Link ---
+function getDirectLink(url) {
+    if (!url) return "";
+    // Agar data:image (base64) hai to waisa hi rehne dein
+    if (url.startsWith("data:") || url.startsWith("blob:")) return url;
+    
+    // Google Drive URL se ID nikal kar Direct Thumbnail Link banana
+    // Ye format sabse reliable hai images dikhane ke liye
+    const idMatch = url.match(/[-\w]{25,}/);
+    if (idMatch && (url.includes("drive.google.com") || url.includes("docs.google.com"))) {
+        return "https://drive.google.com/thumbnail?id=" + idMatch[0] + "&sz=w2000"; // sz=w2000 high quality ke liye
+    }
+    return url;
 }
 
 // --- CRUD OPERATIONS ---
@@ -375,12 +198,14 @@ function generatePreviewFromData(index) {
     
     const r = allRecords[index];
     
-    // UPDATED FUNCTION: Handles CORS for saved images
-    const setImg = (id, src) => { 
-        const el = document.getElementById(id); 
-        if(src && src.startsWith('http')){ 
-            el.setAttribute('crossOrigin', 'anonymous'); // FIX FOR PDF
-            el.src = src; 
+    const setImg = (id, rawUrl) => { 
+        const el = document.getElementById(id);
+        // Yahan par hum URL ko convert kar rahe hain Direct Link mein
+        const directUrl = getDirectLink(rawUrl);
+        
+        if(directUrl){ 
+            el.setAttribute('crossOrigin', 'anonymous'); 
+            el.src = directUrl; 
             el.style.display='block'; 
         }
         else { 
@@ -388,7 +213,7 @@ function generatePreviewFromData(index) {
         } 
     };
     
-    // Check if new image is not uploaded (imgData is null) but old image exists
+    // Naya upload nahi hai to saved image use karein
     if(!imgData.asWas && r.asWasImg) setImg('p_aswas_img', r.asWasImg);
     if(!imgData.asIs && r.asIsImg) setImg('p_asis_img', r.asIsImg);
 
@@ -410,7 +235,7 @@ function fillPreviewFromForm() {
     document.getElementById('p_aswas_list').innerHTML = makeList(document.getElementById('aswas_points').value);
     document.getElementById('p_asis_list').innerHTML = makeList(document.getElementById('asis_points').value);
 
-    // This handles direct upload previews (Data URI - No CORS issue usually)
+    // Direct Upload ke liye (Jab user form bhar raha ho)
     const setImg = (id, src) => { const el = document.getElementById(id); if(src){ el.src=src; el.style.display='block'; } else { el.style.display='none'; } };
     if(imgData.asWas) setImg('p_aswas_img', imgData.asWas);
     if(imgData.asIs) setImg('p_asis_img', imgData.asIs);
@@ -422,7 +247,7 @@ function downloadPDF() {
     const element = document.getElementById('slide-to-print');
     const topic = document.getElementById('topic').value || "Kaizen";
     
-    // UPDATED OPTIONS for Better Rendering
+    // Best Options for rendering Google Images
     const opt = {
       margin: 0,
       filename: `Kaizen_${topic}.pdf`,
@@ -436,6 +261,3 @@ function downloadPDF() {
 
 loadData();
 </script>
-
-</body>
-</html>
