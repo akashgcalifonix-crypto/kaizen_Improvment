@@ -26,6 +26,10 @@
     .btn-danger { background: #dc3545; }
     .btn-sec { background: #6c757d; }
     
+    /* Monthly Report Box */
+    .report-box { background: #e8f4f8; border: 1px solid #bce0fd; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+    .report-box h3 { margin-top: 0; color: #1f4e79; font-size: 16px; }
+
     /* TABLE */
     .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
     .data-table th, .data-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
@@ -128,12 +132,36 @@
       <button class="btn btn-save" id="saveBtn" onclick="saveData()">Save / Update Record</button>
       <button class="btn btn-sec" onclick="clearForm()">Clear Form</button>
       <button class="btn btn-preview" id="viewBtn" onclick="generatePreviewFromForm()">Preview PDF / PPT</button>
-      <span id="loadingMsg" class="loader">🔄 Processing Images... Please Wait...</span>
+      <span id="loadingMsg" class="loader">🔄 Loading Preview...</span>
   </div>
 </div>
 
-<!-- DATA TABLE -->
+<!-- MONTHLY REPORT & DATA TABLE -->
 <div class="control-panel">
+    <!-- Monthly Report Tab -->
+    <div class="report-box">
+        <h3>📅 Download Monthly Report (PPT)</h3>
+        <div class="form-row" style="align-items: flex-end;">
+            <div class="form-group" style="flex: 0 0 150px;">
+                <label>Select Month</label>
+                <select id="reportMonth">
+                    <option value="0">January</option><option value="1">February</option><option value="2">March</option>
+                    <option value="3">April</option><option value="4">May</option><option value="5">June</option>
+                    <option value="6">July</option><option value="7">August</option><option value="8">September</option>
+                    <option value="9">October</option><option value="10">November</option><option value="11">December</option>
+                </select>
+            </div>
+            <div class="form-group" style="flex: 0 0 100px;">
+                <label>Year</label>
+                <input type="number" id="reportYear" value="2026">
+            </div>
+            <div class="form-group">
+                <button class="btn btn-ppt" id="btnMonthlyPPT" onclick="downloadMonthlyPPT()">📥 Download All Slides for Selected Month</button>
+                <span id="reportLoader" class="loader">⏳ Generating Slides...</span>
+            </div>
+        </div>
+    </div>
+
     <h3>Existing Records</h3>
     <table class="data-table">
         <thead>
@@ -149,9 +177,10 @@
 <div id="previewModal" class="preview-modal">
     <div class="preview-content">
         <div style="text-align:right; margin-bottom:10px;">
-            <button class="btn btn-ppt" onclick="downloadPPT()">Download PPT</button>
-            <button class="btn btn-save" onclick="downloadPDF()">Download PDF</button>
+            <button class="btn btn-ppt" id="btnSinglePPT" onclick="downloadPPT()">Download Current Slide PPT</button>
+            <button class="btn btn-save" onclick="downloadPDF()">Download Current Slide PDF</button>
             <button class="btn btn-sec" onclick="closeModal()">Close</button>
+            <span id="dlLoader" class="loader">⏳ Converting...</span>
         </div>
         
         <div id="slide-to-print" class="slide">
@@ -206,31 +235,36 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzcXvGx_kCBEawCt1S86
 let imgData = { asWas: null, asIs: null, asWasName: "", asIsName: "" };
 let allRecords = [];
 
-// --- MAGICAL FUNCTION: Fix Google Drive Links ---
-async function urlToBase64(url) {
+// Helper: Get Proxy URL (LH3) for fast visual preview
+function getProxyUrl(url) {
     if (!url) return null;
-    if (url.startsWith("data:")) return url; 
-
+    if (url.startsWith("data:")) return url;
     const idMatch = url.match(/[-\w]{25,}/);
     if (!idMatch) return url;
+    return `https://lh3.googleusercontent.com/d/${idMatch[0]}=s2000`;
+}
 
-    const fileId = idMatch[0];
-    // Magic URL for CORS access
-    const magicUrl = `https://lh3.googleusercontent.com/d/${fileId}=s2000`; 
+// Helper: Get Base64 for PPT Export
+async function getBase64FromUrl(url) {
+    const proxyUrl = getProxyUrl(url);
+    if(!proxyUrl) return null;
+    if(proxyUrl.startsWith("data:")) return proxyUrl;
 
-    try {
-        const response = await fetch(magicUrl, { mode: 'cors' });
-        const blob = await response.blob();
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = () => resolve(url);
-            reader.readAsDataURL(blob);
-        });
-    } catch (e) {
-        console.warn("Fetch failed, using original:", e);
-        return url; 
-    }
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "Anonymous"; 
+        img.src = proxyUrl;
+        
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            canvas.width = this.naturalWidth;
+            canvas.height = this.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(this, 0, 0);
+            try { resolve(canvas.toDataURL('image/jpeg')); } catch (err) { resolve(null); }
+        };
+        img.onerror = function() { resolve(null); };
+    });
 }
 
 function previewFile(inputId) {
@@ -277,34 +311,58 @@ function renderTable(data) {
     });
 }
 
+// Safe Loading Function
 function loadRecordIntoForm(index) {
-    const r = allRecords[index];
-    document.getElementById('editRowIndex').value = r.rowIndex;
-    
-    ['topic','plant','area','effect','proposer','benefits','status','remarks'].forEach(id => document.getElementById(id).value = r[id] || "");
-    
-    document.getElementById('aswas_points').value = r.asWasPoints || "";
-    document.getElementById('asis_points').value = r.asIsPoints || "";
-    document.getElementById('asis_video').value = r.asIsVideo || "";
-    
-    // LOAD CAPTIONS (If they exist in sheet)
-    document.getElementById('aswas_cap').value = r.asWasCaption || ""; 
-    document.getElementById('asis_cap').value = r.asIsCaption || ""; 
-    
-    if(r.eta) { const d = new Date(r.eta); document.getElementById('eta').value = d.toISOString().split('T')[0]; }
+    try {
+        const r = allRecords[index];
+        if(!r) return;
 
-    document.getElementById('prev_aswas_img').innerText = r.asWasImg ? "Image Available" : "No Image";
-    document.getElementById('prev_asis_img').innerText = r.asIsImg ? "Image Available" : "No Image";
-    
-    document.getElementById('saveBtn').innerText = "Update Record";
-    imgData = { asWas: null, asIs: null }; 
-    window.scrollTo(0,0);
+        document.getElementById('editRowIndex').value = r.rowIndex;
+        
+        document.getElementById('topic').value = r.topic || "";
+        document.getElementById('plant').value = r.plant || "Califonix";
+        document.getElementById('area').value = r.area || "";
+        document.getElementById('effect').value = r.effect || "";
+        document.getElementById('proposer').value = r.proposer || "";
+        document.getElementById('benefits').value = r.benefits || "";
+        document.getElementById('status').value = r.status || "Implemented";
+        document.getElementById('remarks').value = r.statusRemarks || r.remarks || "-";
+
+        document.getElementById('aswas_points').value = r.asWasPoints || "";
+        document.getElementById('asis_points').value = r.asIsPoints || "";
+        document.getElementById('asis_video').value = r.asIsVideo || "";
+        document.getElementById('aswas_cap').value = r.asWasCaption || ""; 
+        document.getElementById('asis_cap').value = r.asIsCaption || ""; 
+        
+        // Date parsing safety check
+        if(r.eta) { 
+            try {
+                const d = new Date(r.eta);
+                if(!isNaN(d)) document.getElementById('eta').value = d.toISOString().split('T')[0];
+            } catch(e) { console.log("Date error", e); }
+        }
+
+        document.getElementById('prev_aswas_img').innerText = r.asWasImg ? "Image Available" : "No Image";
+        document.getElementById('prev_asis_img').innerText = r.asIsImg ? "Image Available" : "No Image";
+        
+        document.getElementById('saveBtn').innerText = "Update Record";
+        imgData = { asWas: null, asIs: null }; 
+        window.scrollTo(0,0);
+        return true; // Success
+    } catch(e) {
+        console.error("Load Error:", e);
+        return false;
+    }
 }
 
-// Shortcut to View
-async function prepareView(index) {
-    loadRecordIntoForm(index);
-    await generatePreviewFromForm(); 
+// View Shortcut
+function prepareView(index) {
+    const success = loadRecordIntoForm(index);
+    if(success) {
+        generatePreviewFromForm();
+    } else {
+        alert("Error loading record data.");
+    }
 }
 
 async function saveData() {
@@ -324,12 +382,12 @@ async function saveData() {
             asWasPoints: document.getElementById('aswas_points').value,
             asWasImgData: imgData.asWas, 
             asWasImgName: imgData.asWas ? "img_aswas.jpg" : "",
-            asWasCaption: document.getElementById('aswas_cap').value, // Sending Caption
+            asWasCaption: document.getElementById('aswas_cap').value,
             
             asIsPoints: document.getElementById('asis_points').value,
             asIsImgData: imgData.asIs, 
             asIsImgName: imgData.asIs ? "img_asis.jpg" : "",
-            asIsCaption: document.getElementById('asis_cap').value, // Sending Caption
+            asIsCaption: document.getElementById('asis_cap').value,
             
             asIsVideo: document.getElementById('asis_video').value,
             benefits: document.getElementById('benefits').value,
@@ -356,44 +414,50 @@ function clearForm() {
     document.getElementById('saveBtn').innerText = "Save Record";
 }
 
-// --- PREVIEW LOGIC ---
-async function generatePreviewFromForm() {
-    const loader = document.getElementById('loadingMsg');
-    loader.style.display = "inline-block";
-    
-    const ids = ['topic','plant','area','effect','proposer','benefits','status','remarks','eta'];
-    ids.forEach(id => document.getElementById('p_'+id).innerText = document.getElementById(id).value);
-    
-    const makeList = (t) => t.split('\n').map(i=>i.trim()?`<li>${i}</li>`:'').join('');
-    document.getElementById('p_aswas_list').innerHTML = makeList(document.getElementById('aswas_points').value);
-    document.getElementById('p_asis_list').innerHTML = makeList(document.getElementById('asis_points').value);
-    
-    // SET CAPTIONS IN PREVIEW
-    document.getElementById('p_aswas_cap').innerText = document.getElementById('aswas_cap').value;
-    document.getElementById('p_asis_cap').innerText = document.getElementById('asis_cap').value;
+// --- PREVIEW LOGIC (FAIL-SAFE) ---
+function generatePreviewFromForm() {
+    try {
+        const safeVal = (id) => document.getElementById(id) ? document.getElementById(id).value : "";
 
-    const handleImg = async (imgId, localData, savedRecImg) => {
-        const el = document.getElementById(imgId);
-        if (localData) {
-            el.src = localData; 
-            el.style.display = 'block';
-        } else if (savedRecImg) {
-            const base64 = await urlToBase64(savedRecImg);
-            el.src = base64;
-            el.style.display = 'block';
-        } else {
-            el.style.display = 'none';
-        }
-    };
+        // 1. Map Text Fields
+        const ids = ['topic','plant','area','effect','proposer','benefits','status','remarks','eta'];
+        ids.forEach(id => {
+            if(document.getElementById('p_'+id)) document.getElementById('p_'+id).innerText = safeVal(id);
+        });
 
-    const idx = document.getElementById('editRowIndex').value;
-    let savedRec = allRecords.find(r => r.rowIndex == idx) || {};
+        const makeList = (t) => t ? t.split('\n').map(i=>i.trim()?`<li>${i}</li>`:'').join('') : "";
+        document.getElementById('p_aswas_list').innerHTML = makeList(safeVal('aswas_points'));
+        document.getElementById('p_asis_list').innerHTML = makeList(safeVal('asis_points'));
+        
+        document.getElementById('p_aswas_cap').innerText = safeVal('aswas_cap');
+        document.getElementById('p_asis_cap').innerText = safeVal('asis_cap');
 
-    await handleImg('p_aswas_img', imgData.asWas, savedRec.asWasImg);
-    await handleImg('p_asis_img', imgData.asIs, savedRec.asIsImg);
+        // 2. Map Images (Use Proxy URL for visual preview to avoid CORS lag)
+        const handleImg = (imgId, localData, savedRecImg) => {
+            const el = document.getElementById(imgId);
+            if(!el) return;
+            if (localData) {
+                el.src = localData; 
+                el.style.display = 'block';
+            } else if (savedRecImg) {
+                el.src = getProxyUrl(savedRecImg); 
+                el.style.display = 'block';
+            } else {
+                el.style.display = 'none';
+            }
+        };
 
-    loader.style.display = "none";
-    document.getElementById('previewModal').style.display = 'flex';
+        const idx = document.getElementById('editRowIndex').value;
+        let savedRec = allRecords.find(r => r.rowIndex == idx) || {};
+
+        handleImg('p_aswas_img', imgData.asWas, savedRec.asWasImg);
+        handleImg('p_asis_img', imgData.asIs, savedRec.asIsImg);
+
+        document.getElementById('previewModal').style.display = 'flex';
+    } catch(e) {
+        console.error("Preview Error", e);
+        alert("Could not generate preview. Check console for details.");
+    }
 }
 
 function closeModal() { document.getElementById('previewModal').style.display = 'none'; }
@@ -410,60 +474,147 @@ function downloadPDF() {
     }).from(el).save();
 }
 
-function downloadPPT() {
-    let pres = new PptxGenJS();
-    pres.layout = 'LAYOUT_WIDE'; 
-    let slide = pres.addSlide();
+// --- PPT GENERATION (SINGLE) ---
+async function downloadPPT() {
+    const btn = document.getElementById('btnSinglePPT');
+    const loader = document.getElementById('dlLoader');
+    btn.disabled = true; loader.style.display = "inline-block";
 
-    // 1. HEADER
-    slide.addText("Best Practices", { x: 0.5, y: 0.3, fontSize: 32, bold: true, color: '1F4E79', fontFace: 'Georgia' });
-    slide.addImage({ path: "https://i.postimg.cc/5y7SN4xc/logo.png", x: 11.5, y: 0.2, w: 1.5, h: 0.6 });
+    try {
+        let pres = new PptxGenJS();
+        pres.layout = 'LAYOUT_WIDE'; 
+        let slide = pres.addSlide();
 
-    // 2. TABLES
-    slide.addTable([['Plant', 'Area', 'Effect', 'Proposer']], { x: 8, y: 0.9, w: 5, colW: [1.2, 1.2, 1.4, 1.2], fontSize: 11, align: 'center', fill: 'f2f2f2', bold: true, color: '000000', border: {pt:1, color:'bfbfbf'} });
-    slide.addTable([[
-        document.getElementById('p_plant').innerText,
-        document.getElementById('p_area').innerText,
-        document.getElementById('p_effect').innerText,
-        document.getElementById('p_proposer').innerText
-    ]], { x: 8, y: 1.25, w: 5, colW: [1.2, 1.2, 1.4, 1.2], fontSize: 11, align: 'center', color: '000000', border: {pt:1, color:'bfbfbf'} });
+        // 1. HEADER
+        slide.addText("Best Practices", { x: 0.5, y: 0.3, fontSize: 32, bold: true, color: '1F4E79', fontFace: 'Georgia' });
+        slide.addImage({ path: "https://i.postimg.cc/5y7SN4xc/logo.png", x: 11.5, y: 0.2, w: 1.5, h: 0.6 });
 
-    // 3. TOPIC
-    slide.addShape(pres.ShapeType.rect, { x: 0.5, y: 1.7, w: 0.15, h: 0.15, line: '555555', fill: 'ffffff' });
-    slide.addText([
-        { text: "Topic- ", options: { color: 'C00000', bold: true } },
-        { text: document.getElementById('p_topic').innerText, options: { color: '0070C0' } }
-    ], { x: 0.7, y: 1.6, w: 12, fontSize: 18, bold: true });
+        // 2. TABLES
+        slide.addTable([['Plant', 'Area', 'Effect', 'Proposer']], { x: 8, y: 0.9, w: 5, colW: [1.2, 1.2, 1.4, 1.2], fontSize: 11, align: 'center', fill: 'f2f2f2', bold: true, color: '000000', border: {pt:1, color:'bfbfbf'} });
+        slide.addTable([[
+            document.getElementById('p_plant').innerText,
+            document.getElementById('p_area').innerText,
+            document.getElementById('p_effect').innerText,
+            document.getElementById('p_proposer').innerText
+        ]], { x: 8, y: 1.25, w: 5, colW: [1.2, 1.2, 1.4, 1.2], fontSize: 11, align: 'center', color: '000000', border: {pt:1, color:'bfbfbf'} });
 
-    // 4. CONTENT
-    slide.addText("As-Was", { x: 0.5, y: 2.2, w: 1.5, h: 0.4, fill: '367FA9', color: 'FFFFFF', bold: true, align: 'center' });
-    slide.addText("As-Is", { x: 7.0, y: 2.2, w: 1.5, h: 0.4, fill: '367FA9', color: 'FFFFFF', bold: true, align: 'center' });
+        // 3. TOPIC
+        slide.addShape(pres.ShapeType.rect, { x: 0.5, y: 1.7, w: 0.15, h: 0.15, line: '555555', fill: 'ffffff' });
+        slide.addText([
+            { text: "Topic- ", options: { color: 'C00000', bold: true } },
+            { text: document.getElementById('p_topic').innerText, options: { color: '0070C0' } }
+        ], { x: 0.7, y: 1.6, w: 12, fontSize: 18, bold: true });
 
-    slide.addText(document.getElementById('aswas_points').value, { x: 0.5, y: 2.7, w: 6, h: 1.5, fontSize: 12, valign: 'top', bullet: true });
-    slide.addText(document.getElementById('asis_points').value, { x: 7.0, y: 2.7, w: 6, h: 1.5, fontSize: 12, valign: 'top', bullet: true });
+        // 4. CONTENT
+        slide.addText("As-Was", { x: 0.5, y: 2.2, w: 1.5, h: 0.4, fill: '367FA9', color: 'FFFFFF', bold: true, align: 'center' });
+        slide.addText("As-Is", { x: 7.0, y: 2.2, w: 1.5, h: 0.4, fill: '367FA9', color: 'FFFFFF', bold: true, align: 'center' });
 
-    // 5. IMAGES
-    const getSrc = (id) => { const el = document.getElementById(id); return (el.style.display !== 'none' && el.src.startsWith('data:')) ? el.src : null; };
-    const asWasData = getSrc('p_aswas_img');
-    const asIsData = getSrc('p_asis_img');
+        slide.addText(document.getElementById('aswas_points').value, { x: 0.5, y: 2.7, w: 6, h: 1.5, fontSize: 12, valign: 'top', bullet: true });
+        slide.addText(document.getElementById('asis_points').value, { x: 7.0, y: 2.7, w: 6, h: 1.5, fontSize: 12, valign: 'top', bullet: true });
 
-    slide.addShape(pres.ShapeType.rect, { x: 0.5, y: 4.2, w: 6, h: 2.5, line: {type:'dash', color:'cccccc'}, fill:'fdfdfd' });
-    slide.addShape(pres.ShapeType.rect, { x: 7.0, y: 4.2, w: 6, h: 2.5, line: {type:'dash', color:'cccccc'}, fill:'fdfdfd' });
+        // 5. IMAGES (Convert to Base64 NOW for the download)
+        slide.addShape(pres.ShapeType.rect, { x: 0.5, y: 4.2, w: 6, h: 2.5, line: {type:'dash', color:'cccccc'}, fill:'fdfdfd' });
+        slide.addShape(pres.ShapeType.rect, { x: 7.0, y: 4.2, w: 6, h: 2.5, line: {type:'dash', color:'cccccc'}, fill:'fdfdfd' });
 
-    if(asWasData) slide.addImage({ data: asWasData, x: 2.0, y: 4.3, w: 3, h: 2, sizing: { type: 'contain', w: 3, h: 2 } });
-    if(asIsData) slide.addImage({ data: asIsData, x: 8.5, y: 4.3, w: 3, h: 2, sizing: { type: 'contain', w: 3, h: 2 } });
+        const getImgSrc = (id) => { const el = document.getElementById(id); return (el.style.display !== 'none' && el.src) ? el.src : null; };
+        const src1 = getImgSrc('p_aswas_img');
+        const src2 = getImgSrc('p_asis_img');
 
-    // 6. CAPTIONS (Moved slightly down to fit under image)
-    slide.addText(document.getElementById('p_aswas_cap').innerText, { x: 0.5, y: 6.4, w: 6, align: 'center', fontSize: 10, color: '2E75B6', bold: true });
-    slide.addText(document.getElementById('p_asis_cap').innerText, { x: 7.0, y: 6.4, w: 6, align: 'center', fontSize: 10, color: '2E75B6', bold: true });
+        if(src1) {
+            const b64 = await getBase64FromUrl(src1);
+            if(b64) slide.addImage({ data: b64, x: 2.0, y: 4.3, w: 3, h: 2, sizing: { type: 'contain', w: 3, h: 2 } });
+        }
+        if(src2) {
+            const b64 = await getBase64FromUrl(src2);
+            if(b64) slide.addImage({ data: b64, x: 8.5, y: 4.3, w: 3, h: 2, sizing: { type: 'contain', w: 3, h: 2 } });
+        }
 
-    // 7. FOOTER
-    slide.addText("Benefits", { x: 0.5, y: 6.9, w: 1.2, h: 0.5, fill: '2E75B6', color: 'FFFFFF', bold: true, align: 'center' });
-    slide.addText("- " + document.getElementById('p_benefits').innerText, { x: 1.7, y: 6.9, w: 5, h: 0.5, border: {pt:1, color:'cccccc'}, fontSize: 11, valign:'middle' });
-    slide.addTable([['Implementation Status', 'Remarks', 'ETA']], { x: 7.5, y: 6.9, w: 5.5, colW: [2, 2, 1.5], fontSize: 10, align: 'center', fill: 'ED7D31', color: 'FFFFFF', bold: true, border: {pt:1, color:'ffffff'} });
-    slide.addTable([[document.getElementById('p_status').innerText, document.getElementById('p_remarks').innerText, document.getElementById('p_eta').innerText]], { x: 7.5, y: 7.2, w: 5.5, colW: [2, 2, 1.5], fontSize: 10, align: 'center', fill: 'FBE5D6', color: '000000', border: {pt:1, color:'ffffff'} });
+        // 6. CAPTIONS
+        slide.addText(document.getElementById('p_aswas_cap').innerText, { x: 0.5, y: 6.4, w: 6, align: 'center', fontSize: 10, color: '2E75B6', bold: true });
+        slide.addText(document.getElementById('p_asis_cap').innerText, { x: 7.0, y: 6.4, w: 6, align: 'center', fontSize: 10, color: '2E75B6', bold: true });
 
-    pres.writeFile({ fileName: `Kaizen_${document.getElementById('topic').value}.pptx` });
+        // 7. FOOTER
+        slide.addText("Benefits", { x: 0.5, y: 6.9, w: 1.2, h: 0.5, fill: '2E75B6', color: 'FFFFFF', bold: true, align: 'center' });
+        slide.addText("- " + document.getElementById('p_benefits').innerText, { x: 1.7, y: 6.9, w: 5, h: 0.5, border: {pt:1, color:'cccccc'}, fontSize: 11, valign:'middle' });
+        slide.addTable([['Implementation Status', 'Remarks', 'ETA']], { x: 7.5, y: 6.9, w: 5.5, colW: [2, 2, 1.5], fontSize: 10, align: 'center', fill: 'ED7D31', color: 'FFFFFF', bold: true, border: {pt:1, color:'ffffff'} });
+        slide.addTable([[document.getElementById('p_status').innerText, document.getElementById('p_remarks').innerText, document.getElementById('p_eta').innerText]], { x: 7.5, y: 7.2, w: 5.5, colW: [2, 2, 1.5], fontSize: 10, align: 'center', fill: 'FBE5D6', color: '000000', border: {pt:1, color:'ffffff'} });
+
+        pres.writeFile({ fileName: `Kaizen_${document.getElementById('topic').value}.pptx` });
+    } catch(e) {
+        console.error(e);
+        alert("Error generating PPT. Check images.");
+    }
+    
+    btn.disabled = false; loader.style.display = "none";
+}
+
+// --- MONTHLY REPORT WITH FIXED IMAGES ---
+async function downloadMonthlyPPT() {
+    if(allRecords.length === 0) { alert("No data loaded. Please refresh data first."); return; }
+
+    const selMonth = parseInt(document.getElementById('reportMonth').value);
+    const selYear = parseInt(document.getElementById('reportYear').value);
+    
+    const filtered = allRecords.filter(r => {
+        const d = new Date(r.date);
+        return d.getMonth() === selMonth && d.getFullYear() === selYear;
+    });
+
+    if(filtered.length === 0) { alert("No records found for the selected month/year."); return; }
+
+    const btn = document.getElementById('btnMonthlyPPT');
+    const loader = document.getElementById('reportLoader');
+    btn.disabled = true;
+    loader.style.display = 'inline-block';
+
+    try {
+        let pres = new PptxGenJS();
+        pres.layout = 'LAYOUT_WIDE'; 
+
+        for(let r of filtered) {
+            let slide = pres.addSlide();
+            // ... (Same logic as single slide, but using 'r' object)
+            slide.addText("Best Practices", { x: 0.5, y: 0.3, fontSize: 32, bold: true, color: '1F4E79', fontFace: 'Georgia' });
+            slide.addImage({ path: "https://i.postimg.cc/5y7SN4xc/logo.png", x: 11.5, y: 0.2, w: 1.5, h: 0.6 });
+
+            slide.addTable([['Plant', 'Area', 'Effect', 'Proposer']], { x: 8, y: 0.9, w: 5, colW: [1.2, 1.2, 1.4, 1.2], fontSize: 11, align: 'center', fill: 'f2f2f2', bold: true, color: '000000', border: {pt:1, color:'bfbfbf'} });
+            slide.addTable([[ r.plant || "", r.area || "", r.effect || "", r.proposer || "" ]], { x: 8, y: 1.25, w: 5, colW: [1.2, 1.2, 1.4, 1.2], fontSize: 11, align: 'center', color: '000000', border: {pt:1, color:'bfbfbf'} });
+
+            slide.addShape(pres.ShapeType.rect, { x: 0.5, y: 1.7, w: 0.15, h: 0.15, line: '555555', fill: 'ffffff' });
+            slide.addText([ { text: "Topic- ", options: { color: 'C00000', bold: true } }, { text: r.topic || "", options: { color: '0070C0' } } ], { x: 0.7, y: 1.6, w: 12, fontSize: 18, bold: true });
+
+            slide.addText("As-Was", { x: 0.5, y: 2.2, w: 1.5, h: 0.4, fill: '367FA9', color: 'FFFFFF', bold: true, align: 'center' });
+            slide.addText("As-Is", { x: 7.0, y: 2.2, w: 1.5, h: 0.4, fill: '367FA9', color: 'FFFFFF', bold: true, align: 'center' });
+
+            slide.addText(r.asWasPoints || "", { x: 0.5, y: 2.7, w: 6, h: 1.5, fontSize: 12, valign: 'top', bullet: true });
+            slide.addText(r.asIsPoints || "", { x: 7.0, y: 2.7, w: 6, h: 1.5, fontSize: 12, valign: 'top', bullet: true });
+
+            slide.addShape(pres.ShapeType.rect, { x: 0.5, y: 4.2, w: 6, h: 2.5, line: {type:'dash', color:'cccccc'}, fill:'fdfdfd' });
+            slide.addShape(pres.ShapeType.rect, { x: 7.0, y: 4.2, w: 6, h: 2.5, line: {type:'dash', color:'cccccc'}, fill:'fdfdfd' });
+
+            if(r.asWasImg) { const b64 = await getBase64FromUrl(r.asWasImg); if(b64) slide.addImage({ data: b64, x: 2.0, y: 4.3, w: 3, h: 2, sizing: { type: 'contain', w: 3, h: 2 } }); }
+            if(r.asIsImg) { const b64 = await getBase64FromUrl(r.asIsImg); if(b64) slide.addImage({ data: b64, x: 8.5, y: 4.3, w: 3, h: 2, sizing: { type: 'contain', w: 3, h: 2 } }); }
+
+            slide.addText(r.asWasCaption || "", { x: 0.5, y: 6.4, w: 6, align: 'center', fontSize: 10, color: '2E75B6', bold: true });
+            slide.addText(r.asIsCaption || "", { x: 7.0, y: 6.4, w: 6, align: 'center', fontSize: 10, color: '2E75B6', bold: true });
+
+            let etaStr = r.eta ? new Date(r.eta).toLocaleDateString() : "";
+            slide.addText("Benefits", { x: 0.5, y: 6.9, w: 1.2, h: 0.5, fill: '2E75B6', color: 'FFFFFF', bold: true, align: 'center' });
+            slide.addText("- " + (r.benefits || ""), { x: 1.7, y: 6.9, w: 5, h: 0.5, border: {pt:1, color:'cccccc'}, fontSize: 11, valign:'middle' });
+            
+            slide.addTable([['Implementation Status', 'Remarks', 'ETA']], { x: 7.5, y: 6.9, w: 5.5, colW: [2, 2, 1.5], fontSize: 10, align: 'center', fill: 'ED7D31', color: 'FFFFFF', bold: true, border: {pt:1, color:'ffffff'} });
+            slide.addTable([[r.status || "", r.statusRemarks || r.remarks || "", etaStr]], { x: 7.5, y: 7.2, w: 5.5, colW: [2, 2, 1.5], fontSize: 10, align: 'center', fill: 'FBE5D6', color: '000000', border: {pt:1, color:'ffffff'} });
+        }
+
+        const monthName = document.getElementById('reportMonth').options[selMonth].text;
+        pres.writeFile({ fileName: `Monthly_Kaizen_Report_${monthName}_${selYear}.pptx` });
+    } catch(e) {
+        console.error(e);
+        alert("Error generating monthly report.");
+    }
+
+    loader.style.display = 'none';
+    btn.disabled = false;
 }
 
 loadData();
